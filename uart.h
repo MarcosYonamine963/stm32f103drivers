@@ -3,10 +3,6 @@
 
 #include "stm32f1xx.h"
 
-
-#define UART_MAIN           USART1
-#define UART_DEBUG          USART3
-
 /*
  * FOR STM32F103C8T6:
  *
