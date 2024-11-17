@@ -34,13 +34,11 @@ typedef enum
     UART_ERR
 }uart_status_e;
 
-void Uart_config(USART_TypeDef *UARTx, uint32_t baud, uart_remap_e remap);
+// Function pointer for RX interrupt callback
+typedef void (*Uart_RX_CallbackFunc_t )(uint8_t);
+
+void Uart_config(USART_TypeDef *UARTx, uint32_t baud, uart_remap_e remap, Uart_RX_CallbackFunc_t callback);
 void Uart_WriteChar(USART_TypeDef *UARTx, uint8_t ch);
 void Uart_Transmit(USART_TypeDef *UARTx, uint8_t *buffer, uint16_t length);
-
-uart_status_e Uart_Read_from_buffer(USART_TypeDef *UARTx, uint8_t *read_value);
-
-// Uart Debug function
-void debug_send_msg(uint8_t *msg, uint8_t size);
 
 #endif /* UART_H_ */

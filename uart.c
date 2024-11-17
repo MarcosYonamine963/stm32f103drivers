@@ -1,7 +1,5 @@
 #include "uart.h"
 #include "sys_clock.h"
-#include "circular_buffer.h"
-#include "params.h"
 
 /*
  * Transmission Procedure:
@@ -39,21 +37,16 @@
 /* ####################################################### */
 
 
-/* PRIVATE VARIABLES */
-
-static circ_buffer_t uart1_buffer = {{0}, 0, 0};
-static circ_buffer_t uart2_buffer = {{0}, 0, 0};
-static circ_buffer_t uart3_buffer = {{0}, 0, 0};
-
-
-/* ####################################################### */
-
-
 /* PRIVATE FUNCTIONS PROTOTYPES */
 
 static void Uart1_config(uint32_t baud, uart_remap_e remap);
 static void Uart2_config(uint32_t baud);
 static void Uart3_config(uint32_t baud);
+
+// Function pointer for RX interrupt Callbacks
+Uart_RX_CallbackFunc_t uart1_rx_callback;
+Uart_RX_CallbackFunc_t uart2_rx_callback;
+Uart_RX_CallbackFunc_t uart3_rx_callback;
 
 /* ####################################################### */
 
@@ -74,18 +67,21 @@ static void Uart3_config(uint32_t baud);
  *      NO_REMAP:       TX/PB10, RX/PB11
  *      REMAP           (UNSUPPORTED FOR STM32F103C8T6)
  * */
-void Uart_config(USART_TypeDef *UARTx, uint32_t baud, uart_remap_e remap)
+void Uart_config(USART_TypeDef *UARTx, uint32_t baud, uart_remap_e remap, Uart_RX_CallbackFunc_t callback)
 {
     switch((uint32_t)UARTx)
     {
         case (uint32_t)USART1:
             Uart1_config(baud, remap);
+            uart1_rx_callback = callback;
             break;
         case (uint32_t)USART2:
             Uart2_config(baud);
+            uart2_rx_callback = callback;
             break;
         case (uint32_t)USART3:
             Uart3_config(baud);
+            uart3_rx_callback = callback;
             break;
     }
 }
@@ -108,56 +104,6 @@ void Uart_Transmit(USART_TypeDef *UARTx, uint8_t *buffer, uint16_t length)
     }
 }
 
-/* @brief Read a received byte
- * @param UARTx: USART1, USART2 or USART3
- * @param read_value: pointer to read data
- *
- * @ret UART_OK or UART_ERR
- * */
-uart_status_e Uart_Read_from_buffer(USART_TypeDef *UARTx, uint8_t *read_value)
-{
-    switch((uint32_t)UARTx)
-    {
-        case (uint32_t)USART1:
-            if( Buffer_Read(&uart1_buffer, read_value) == BUFFER_OK)
-            {
-                return UART_OK;
-            }
-            else
-            {
-                return UART_ERR;
-            }
-            break;
-
-        case (uint32_t)USART2:
-
-            if( Buffer_Read(&uart2_buffer, read_value) == BUFFER_OK)
-            {
-                return UART_OK;
-            }
-            else
-            {
-                return UART_ERR;
-            }
-            break;
-
-        case (uint32_t)USART3:
-
-            if( Buffer_Read(&uart3_buffer, read_value) == BUFFER_OK)
-            {
-                return UART_OK;
-            }
-            else
-            {
-                return UART_ERR;
-            }
-            break;
-
-        default:
-            return UART_ERR;
-    }
-}// end Uart_Read_from_buffer
-
 
 /* ####################################################### */
 
@@ -169,8 +115,6 @@ uart_status_e Uart_Read_from_buffer(USART_TypeDef *UARTx, uint8_t *read_value)
  */
 static void Uart1_config(uint32_t baud, uart_remap_e remap)
 {
-    // Tx config done.  TODO Rx config.
-
     if(UART_REMAP == remap)
     {
         /* TX/PB6, RX/PB7 */
@@ -236,8 +180,6 @@ static void Uart1_config(uint32_t baud, uart_remap_e remap)
 
 static void Uart2_config(uint32_t baud)
 {
-    // Tx config done.  TODO Rx config.
-
     /* TX/PA2, RX/PA3 */
 
     // Enable clock access to GPIOA
@@ -279,8 +221,6 @@ static void Uart2_config(uint32_t baud)
 
 static void Uart3_config(uint32_t baud)
 {
-    // Tx config done.  TODO Rx config.
-
     /* TX/PB10, RX/PB11 */
 
     // Enable clock access to GPIOA
@@ -327,42 +267,21 @@ static void Uart3_config(uint32_t baud)
 
 void USART1_IRQHandler(void)
 {
-    uint8_t usart_byte_in;
-
     // RXNE: Received data ready to be read
     if( (USART1->SR & USART_SR_RXNE) == USART_SR_RXNE )
-    {
-        usart_byte_in = (uint8_t)USART1->DR;
-        Buffer_Write(&uart1_buffer, usart_byte_in);
-    }
+        uart1_rx_callback((uint8_t)USART1->DR);
 }
 
 void USART2_IRQHandler(void)
 {
-    uint8_t usart_byte_in;
-
     // RXNE: Received data ready to be read
     if ((USART2->SR & USART_SR_RXNE) == USART_SR_RXNE)
-    {
-        usart_byte_in = (uint8_t)USART2->DR;
-        Buffer_Write(&uart2_buffer, usart_byte_in);
-    }
+        uart2_rx_callback((uint8_t)USART2->DR);
 }
 
 void USART3_IRQHandler(void)
 {
-    uint8_t usart_byte_in;
-
     // RXNE: Received data ready to be read
     if ((USART3->SR & USART_SR_RXNE) == USART_SR_RXNE)
-    {
-        usart_byte_in = (uint8_t)USART3->DR;
-        Buffer_Write(&uart3_buffer, usart_byte_in);
-    }
+        uart3_rx_callback((uint8_t)USART3->DR);
 }
-
-void debug_send_msg(uint8_t *msg, uint8_t size)
-{
-    if(params.debug_cfg & (1<<7))
-        Uart_Transmit(UART_DEBUG, msg, size);
-}// end debug_send_msg
