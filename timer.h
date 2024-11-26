@@ -17,6 +17,10 @@
 typedef enum
 {
     TIMER_GENERIC,
+    TIMER_BUTTON0_DEB,
+    TIMER_BUTTON1_DEB,
+    TIMER_BUTTON0_LONG_PRESS,
+    TIMER_BUTTON1_LONG_PRESS,
 
     TIMER_N_MAX
 }timer_list_t;
