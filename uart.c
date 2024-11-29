@@ -87,21 +87,34 @@ void Uart_config(USART_TypeDef *UARTx, uint32_t baud, uart_remap_e remap, Uart_R
 }
 
 
-void Uart_WriteChar(USART_TypeDef *UARTx, uint8_t ch)
+uart_status_e Uart_WriteChar(USART_TypeDef *UARTx, uint8_t ch)
 {
+    // verify if uart is not enabled
+    if(0 == (UARTx->CR1 & USART_CR1_UE))
+        return UART_ERR;
+
+    // verify if tx is not enabled
+    if(0 == (UARTx->CR1 & USART_CR1_TE))
+        return UART_ERR;
+
     /*Make sure the transmit data register is empty*/
     while(!(UARTx->SR & USART_SR_TXE)){}
 
     /*Write to transmit data register*/
     UARTx->DR  =  (ch & 0xFF);
+
+    return UART_OK;
 }
 
-void Uart_Transmit(USART_TypeDef *UARTx, uint8_t *buffer, uint16_t length)
+uart_status_e Uart_Transmit(USART_TypeDef *UARTx, uint8_t *buffer, uint16_t length)
 {
     for(uint16_t i = 0; i < length; i++)
     {
-        Uart_WriteChar(UARTx, buffer[i]);
+        if( UART_ERR == Uart_WriteChar(UARTx, buffer[i]))
+            return UART_ERR;
     }
+
+    return UART_OK;
 }
 
 
