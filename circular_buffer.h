@@ -1,6 +1,11 @@
 #ifndef __CIRCULAR_BUFFER_H__
 #define __CIRCULAR_BUFFER_H__
 
+#ifdef  __cplusplus
+extern "C"
+{
+#endif
+
 #include <stdint.h>
 
 /**
@@ -42,5 +47,10 @@ typedef enum STATUS_Circular_Buffer
 buffer_status_e Buffer_Write(volatile circ_buffer_t * buffer, uint8_t byte);
 buffer_status_e Buffer_Read(volatile circ_buffer_t * buffer, uint8_t * byte);
 buffer_status_e Buffer_Peek(volatile circ_buffer_t * buffer, uint8_t * byte);
+
+
+#ifdef  __cplusplus
+}
+#endif
 
 #endif

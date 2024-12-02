@@ -1,6 +1,11 @@
 #ifndef EXTI_H_
 #define EXTI_H_
 
+#ifdef  __cplusplus
+extern "C"
+{
+#endif
+
 #include "stm32f1xx.h"
 
 typedef void (*Exti_CallbackFunc_t )(void);
@@ -41,5 +46,9 @@ typedef enum
 exti_status_e Exti_config_source(exti_line_e line, GPIO_TypeDef *GPIO, exti_trigger_mode_e mode);
 void Exti_config_callback_line(uint8_t line, Exti_CallbackFunc_t callback);
 void Exti_Disable_All_Lines();
+
+#ifdef  __cplusplus
+}
+#endif
 
 #endif /* EXTI_H_ */

@@ -1,6 +1,11 @@
 #ifndef TIMER_H_
 #define TIMER_H_
 
+#ifdef  __cplusplus
+extern "C"
+{
+#endif
+
 #include "stdint.h"
 
 /*############################################*/
@@ -50,5 +55,9 @@ uint32_t Timer_Get_10us_Tick(void);
 
 void  Delay_ms(uint32_t t);  // not recommended for using this function
 void Delay_10us(uint32_t t); // not recommended for using this function
+
+#ifdef  __cplusplus
+}
+#endif
 
 #endif /* TIMER_H_ */

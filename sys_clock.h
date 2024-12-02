@@ -1,6 +1,11 @@
 #ifndef SYS_CLOCK_H_
 #define SYS_CLOCK_H_
 
+#ifdef  __cplusplus
+extern "C"
+{
+#endif
+
 /* Clock values */
 
 #define CLOCK_64MHz     64000000UL
@@ -12,5 +17,9 @@
 #define SYS_CLOCK       CLOCK_64MHz
 
 void Sys_Clock_Init(void);
+
+#ifdef  __cplusplus
+}
+#endif
 
 #endif /* SYS_CLOCK_H_ */
