@@ -25,10 +25,17 @@ typedef enum
     I2C1_PIN_REMAP,
 }i2c1_pin_remap_e;
 
-void I2C1_Config(i2c1_pin_remap_e I2C1_PIN_REMAPx);
+typedef enum
+{
+    I2C_STATUS_OK,
+    I2C_STATUS_ERR
+}i2c_status_e;
+
+i2c_status_e I2C1_Config(i2c1_pin_remap_e I2C1_PIN_REMAPx);
 uint8_t I2C1_Scan_Bus(uint8_t *addr);
 
 
+i2c_status_e I2C1_Write_Addr_Byte(uint8_t slave_addr, uint8_t addr, uint8_t data);
 
 
 

@@ -1,21 +1,32 @@
 #include "i2c.h"
-#include "timer.h" // To use Delay // TODO remove delay
-
+#include "timer.h"
 
 /*
+    Reference:
     https://blog.embeddedexpert.io/?p=1493
 */
 
 
+// Timer for ensure the break of the infinite whiles. Use with Timer_Get_Sys_Tick() func.
+static uint32_t i2c_timeout_timer;
+
 
 /*
- * Config pins for I2C1
+ * @brief Config pins for I2C1
  *
+ *   Config I2C1 Remap:
+ *
+ *   I2C1_PIN_REMAP_NO:
+ *       SCL: PB6
+ *       SDA: PB7
+ *
+ *   I2C1_PIN_REMAP:
+ *      SCL: PB8
+ *      SDA: PB9
  *
  * */
-void I2C1_Config(i2c1_pin_remap_e I2C1_PIN_REMAPx)
+i2c_status_e I2C1_Config(i2c1_pin_remap_e I2C1_PIN_REMAPx)
 {
-
     // Enable GPIOB Clock
     RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
 
@@ -70,9 +81,12 @@ void I2C1_Config(i2c1_pin_remap_e I2C1_PIN_REMAPx)
     RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
 
     // Reset I2C1
+    i2c_timeout_timer = Timer_Get_Sys_Tick();
     while(I2C1->CR1 & I2C_CR1_SWRST)
     {
         I2C1->CR1 &= ~I2C_CR1_SWRST;
+        if(Timer_Get_Sys_Tick() - i2c_timeout_timer > 500)
+            return I2C_STATUS_ERR;
     }
 
     // Frequency 32MHz
@@ -87,20 +101,29 @@ void I2C1_Config(i2c1_pin_remap_e I2C1_PIN_REMAPx)
     // Enable I2C1
     I2C1->CR1 |= I2C_CR1_PE;
 
+    return I2C_STATUS_OK;
+
 }// end I2C1_Config
 
 /*
  * @brief Scan bus from addr 0 to 127. Return quantity of found addrs.
  *
- * @param addr [out]    pointer to the list of addrs. Max len: 128
- * @return              lenght of *addr (quant of addrs)
+ * @param addr [out]    pointer to the list of addrs. Max len: 128.
+ * @return              lenght of *addr (quant of addrs).
+ *                      if return == 0xFF: ERROR
  * */
 uint8_t I2C1_Scan_Bus(uint8_t *addr)
 {
     uint8_t len = 0;
 
     // Ensure I2C1 is not busy
-    while(I2C1->SR2&I2C_SR2_BUSY);
+    i2c_timeout_timer = Timer_Get_Sys_Tick();
+    while(I2C1->SR2 & I2C_SR2_BUSY)
+    {
+        if(Timer_Get_Sys_Tick() - i2c_timeout_timer > 500)
+            return 0xFF;
+    }
+
 
     // scan the 128 addrs (7 bits: 0~127)
     for(uint8_t i = 0; i < 128; i++)
@@ -109,7 +132,12 @@ uint8_t I2C1_Scan_Bus(uint8_t *addr)
         I2C1->CR1 |= I2C_CR1_START;
 
         // Wait for Start condition
-        while( !(I2C1->SR1 & I2C_SR1_SB) );
+        i2c_timeout_timer = Timer_Get_Sys_Tick();
+        while( !(I2C1->SR1 & I2C_SR1_SB) )
+        {
+            if(Timer_Get_Sys_Tick() - i2c_timeout_timer > 500)
+                return 0xFF;
+        }
 
         // Send addr
         I2C1->DR=(i<<1);
@@ -120,7 +148,12 @@ uint8_t I2C1_Scan_Bus(uint8_t *addr)
          */
 
         // Acho q ehh pra ler o registrador, e zerar as flags. TODO verificar isso
-        while(!(I2C1->SR1)|!(I2C1->SR2)){};
+        i2c_timeout_timer = Timer_Get_Sys_Tick();
+        while(!(I2C1->SR1)|!(I2C1->SR2))
+        {
+            if(Timer_Get_Sys_Tick() - i2c_timeout_timer > 500)
+                return 0xFF;
+        }
 
         // Send Stop bit
         I2C1->CR1 |= I2C_CR1_STOP;
@@ -141,3 +174,73 @@ uint8_t I2C1_Scan_Bus(uint8_t *addr)
     return len;
 }
 
+i2c_status_e I2C1_Write_Addr_Byte(uint8_t slave_addr, uint8_t addr, uint8_t data)
+{
+    // Ensure i2c is not busy
+    i2c_timeout_timer = Timer_Get_Sys_Tick();
+    while(I2C1->SR2 & I2C_SR2_BUSY)
+    {
+        if(Timer_Get_Sys_Tick() - i2c_timeout_timer > 500)
+            return I2C_STATUS_ERR;
+    }
+
+    // Send start
+    I2C1->CR1 |= I2C_CR1_START;
+
+    // Wait until start bit is set
+    i2c_timeout_timer = Timer_Get_Sys_Tick();
+    while( !(I2C1->SR1 & I2C_SR1_SB) )
+    {
+        if(Timer_Get_Sys_Tick() - i2c_timeout_timer > 500)
+            return I2C_STATUS_ERR;
+    }
+
+    // Send slave address
+    I2C1->DR = slave_addr<< 1;
+
+    // Wait until slave response for ADDR
+    i2c_timeout_timer = Timer_Get_Sys_Tick();
+    while( !(I2C1->SR1 & I2C_SR1_ADDR) )
+    {
+        if(Timer_Get_Sys_Tick() - i2c_timeout_timer > 500)
+            return I2C_STATUS_ERR;
+    }
+
+    // Clear SR2 by reading it
+    (void)I2C1->SR2;
+
+    // Wait until data register empty
+    i2c_timeout_timer = Timer_Get_Sys_Tick();
+    while( !(I2C1->SR1 & I2C_SR1_TXE) )
+    {
+        if(Timer_Get_Sys_Tick() - i2c_timeout_timer > 500)
+            return I2C_STATUS_ERR;
+    }
+
+    // Send addr to write
+    I2C1->DR = addr;
+
+    // Wait until data register empty
+    i2c_timeout_timer = Timer_Get_Sys_Tick();
+    while( !(I2C1->SR1 & I2C_SR1_TXE) )
+    {
+        if(Timer_Get_Sys_Tick() - i2c_timeout_timer > 500)
+            return I2C_STATUS_ERR;
+    }
+
+    // Send data to be written
+    I2C1->DR = data;
+
+    // Wait until data register empty
+    i2c_timeout_timer = Timer_Get_Sys_Tick();
+    while ( !(I2C1->SR1 & I2C_SR1_BTF) ) // BTF: Byte Transfer Fished status flag
+    {
+        if(Timer_Get_Sys_Tick() - i2c_timeout_timer > 500)
+            return I2C_STATUS_ERR;
+    }
+
+    // Send Stop
+    I2C1->CR1 |= I2C_CR1_STOP;
+
+    return I2C_STATUS_OK;
+}
