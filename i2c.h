@@ -1,3 +1,15 @@
+/**
+ ******************************************************************************
+ * @file      i2c.h
+ * @author    Marcos Yonamine
+ * @version   v1.0
+ * @date      2024-12-05
+ *
+ * @brief     I2C Driver for STM32F103 devices
+ *
+ ******************************************************************************
+ */
+
 #ifndef STM32F103DRIVERS_I2C_H_
 #define STM32F103DRIVERS_I2C_H_
 
@@ -25,6 +37,9 @@ typedef enum
     I2C1_PIN_REMAP,
 }i2c1_pin_remap_e;
 
+/**
+ * I2C Status of Operation
+ */
 typedef enum
 {
     I2C_STATUS_OK,

@@ -1,3 +1,15 @@
+/**
+ ******************************************************************************
+ * @file      gpio.h
+ * @author    Marcos Yonamine
+ * @version   v1.0
+ * @date      2024-12-05
+ *
+ * @brief     GPIO Driver for STM32F103 devices
+ *
+ ******************************************************************************
+ */
+
 #ifndef GPIO_H_
 #define GPIO_H_
 
@@ -8,6 +20,9 @@ extern "C"
 
 #include "stm32f1xx.h"
 
+/**
+ * @brief GPIO Modes
+ */
 typedef enum
 {
     OUTPUT_PUSH_PULL = 0,

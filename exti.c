@@ -1,7 +1,40 @@
+/**
+ ******************************************************************************
+ * @file      exti.c
+ ******************************************************************************
+ */
+
 #include "exti.h"
+
+/* Callback functions pointers */
+static void (*Exti_callback_line_0)(void);
+static void (*Exti_callback_line_1)(void);
+static void (*Exti_callback_line_2)(void);
+static void (*Exti_callback_line_3)(void);
+static void (*Exti_callback_line_4)(void);
+static void (*Exti_callback_line_5)(void);
+static void (*Exti_callback_line_6)(void);
+static void (*Exti_callback_line_7)(void);
+static void (*Exti_callback_line_8)(void);
+static void (*Exti_callback_line_9)(void);
+static void (*Exti_callback_line_10)(void);
+static void (*Exti_callback_line_11)(void);
+static void (*Exti_callback_line_12)(void);
+static void (*Exti_callback_line_13)(void);
+static void (*Exti_callback_line_14)(void);
+static void (*Exti_callback_line_15)(void);
 
 static uint16_t exti_used_lines_flags = 0;
 
+/**
+ * @brief Configure a line of the EXTI.
+ *
+ * @param line [IN] line to be configured. Same as GPIO Pin number.
+ * @param GPIO [IN] GPIO_TypeDef pointer. GPIO Port.
+ * @param mode [IN] Trigger mode. See enum exti_trigger_mode_e
+ *
+ * @retval exti_status_e Status
+ * */
 exti_status_e Exti_config_source(exti_line_e line, GPIO_TypeDef *GPIO, exti_trigger_mode_e mode)
 {
     // Verify if exti line is already in use
@@ -148,24 +181,17 @@ exti_status_e Exti_config_source(exti_line_e line, GPIO_TypeDef *GPIO, exti_trig
 }// end Exti_config_source
 
 
-/* Callback functions pointers */
-void (*Exti_callback_line_0)(void);
-void (*Exti_callback_line_1)(void);
-void (*Exti_callback_line_2)(void);
-void (*Exti_callback_line_3)(void);
-void (*Exti_callback_line_4)(void);
-void (*Exti_callback_line_5)(void);
-void (*Exti_callback_line_6)(void);
-void (*Exti_callback_line_7)(void);
-void (*Exti_callback_line_8)(void);
-void (*Exti_callback_line_9)(void);
-void (*Exti_callback_line_10)(void);
-void (*Exti_callback_line_11)(void);
-void (*Exti_callback_line_12)(void);
-void (*Exti_callback_line_13)(void);
-void (*Exti_callback_line_14)(void);
-void (*Exti_callback_line_15)(void);
-
+/**
+ * @brief Configure an EXTI line's callback function.
+ *
+ * When the interrupt occurs, the callback function will be called.
+ *
+ * @param line [IN] EXTI line to be configured. Same as GPIO Pin number.
+ * @param callback [IN] callback function pointer to be called on interrupt.
+ *
+ * @note The callback function instructions must be as brief as possible. <br>
+ *       Do not use blocking functions.
+ */
 void Exti_config_callback_line(uint8_t line, Exti_CallbackFunc_t callback)
 {
     switch(line)
@@ -221,6 +247,9 @@ void Exti_config_callback_line(uint8_t line, Exti_CallbackFunc_t callback)
 
     }
 }
+
+
+/** @cond */ // Ignore documentation on Doxygen
 
 void EXTI0_IRQHandler()
 {
@@ -312,6 +341,13 @@ void EXTI15_10_IRQHandler()
     }
 }
 
+/** @endcond */
+
+/**
+ * @brief Disable all EXTI interrupt lines
+ *
+ * <br>
+ */
 void Exti_Disable_All_Lines()
 {
     __NVIC_DisableIRQ(EXTI0_IRQn);

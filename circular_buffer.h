@@ -1,3 +1,32 @@
+/**
+ ******************************************************************************
+ * @file      circular_buffer.h
+ * @author    Marcos Yonamine
+ * @version   v1.0
+ * @date      2024-12-05
+ *
+ * @brief     Circular FIFO Buffer.
+ *
+ * ## Example of use
+ *
+ * ### 1. Create a circular buffer variable
+ *
+ *     circ_buffer_t buffer = { {0}, 0, 0 };
+ *
+ * ### 2. Write a byte on the buffer
+ *
+ *     Buffer_Write(&buffer, value);
+ *
+ * ### 3. Read the byte, and save to a variable
+ *
+ *     if(BUFFER_OK == Buffer_Read(&buffer, &var))
+ *     {
+ *         do_something(var);
+ *     }
+ *
+ ******************************************************************************
+ */
+
 #ifndef __CIRCULAR_BUFFER_H__
 #define __CIRCULAR_BUFFER_H__
 
@@ -20,7 +49,7 @@ extern "C"
  *  according to SIZE_CIRCULAR_BUFFER.
  * 
  */
-#define CIRCULAR_BUFFER_MASK    0x3FF
+#define CIRCULAR_BUFFER_MASK    (SIZE_CIRCULAR_BUFFER - 1)
 
 /**
  * @brief Struct definition of the Circular buffer.
@@ -28,9 +57,16 @@ extern "C"
  */
 typedef struct FIFO_Circular_Buffer
 {
-	uint8_t data[SIZE_CIRCULAR_BUFFER]; /**< Dara Array */
-	uint16_t i_first;   /**< Index of the first position */
-	uint16_t i_last;    /**< Index of the last position */
+
+    /** @brief Dara Array */
+	uint8_t data[SIZE_CIRCULAR_BUFFER]; /**< .*/
+
+    /** @brief Index of the first position */
+	uint16_t i_first; /**< .*/
+
+	/** @brief Index of the last position */
+	uint16_t i_last; /**< .*/
+
 } circ_buffer_t ;
 
 /**

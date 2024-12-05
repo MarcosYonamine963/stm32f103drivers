@@ -1,30 +1,34 @@
-#include "i2c.h"
-#include "timer.h"
+/**
+ * @file i2c.c
+ */
 
 /*
     Reference:
     https://blog.embeddedexpert.io/?p=1493
 */
 
+#include "i2c.h"
+#include "timer.h"
 
 // Timer for ensure the break of the infinite whiles. Use with Timer_Get_Sys_Tick() func.
 static uint32_t i2c_timeout_timer;
 
-
-/*
+/**
  * @brief Config pins for I2C1
  *
  *   Config I2C1 Remap:
  *
- *   I2C1_PIN_REMAP_NO:
- *       SCL: PB6
+ *   I2C1_PIN_REMAP_NO:     <br>
+ *       SCL: PB6           <br>
  *       SDA: PB7
  *
- *   I2C1_PIN_REMAP:
- *      SCL: PB8
+ *   I2C1_PIN_REMAP:        <br>
+ *      SCL: PB8            <br>
  *      SDA: PB9
  *
- * */
+ * @param I2C1_PIN_REMAPx see enum i2c1_pin_remap_e
+ *
+ */
 i2c_status_e I2C1_Config(i2c1_pin_remap_e I2C1_PIN_REMAPx)
 {
     // Enable GPIOB Clock
@@ -105,13 +109,13 @@ i2c_status_e I2C1_Config(i2c1_pin_remap_e I2C1_PIN_REMAPx)
 
 }// end I2C1_Config
 
-/*
+/**
  * @brief Scan bus from addr 0 to 127. Return quantity of found addrs.
  *
  * @param addr [out]    pointer to the list of addrs. Max len: 128.
- * @return              lenght of *addr (quant of addrs).
+ * @return              lenght of *addr (quant of addrs). <br>
  *                      if return == 0xFF: ERROR
- * */
+ */
 uint8_t I2C1_Scan_Bus(uint8_t *addr)
 {
     uint8_t len = 0;
@@ -174,6 +178,15 @@ uint8_t I2C1_Scan_Bus(uint8_t *addr)
     return len;
 }
 
+/**
+ * @brief Write a byte (data) at the address (addr) of the slave (slave_addr).
+ *
+ * @param slave_addr [IN] address of the slave device (UID)
+ * @param addr [IN] address of the slave to write the data (device memory addr)
+ * @param data [IN] value to write
+ *
+ * @retval i2c_status_e Status of operation
+ */
 i2c_status_e I2C1_Write_Addr_Byte(uint8_t slave_addr, uint8_t addr, uint8_t data)
 {
     // Ensure i2c is not busy
@@ -243,4 +256,4 @@ i2c_status_e I2C1_Write_Addr_Byte(uint8_t slave_addr, uint8_t addr, uint8_t data
     I2C1->CR1 |= I2C_CR1_STOP;
 
     return I2C_STATUS_OK;
-}
+}// end I2C1_Write_Addr_Byte

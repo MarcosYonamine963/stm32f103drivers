@@ -1,3 +1,7 @@
+/**
+ * @file timer.c
+ */
+
 #include "stm32f1xx.h"
 #include "timer.h"
 #include "sys_clock.h"  // Just to get system clock value
@@ -5,16 +9,22 @@
 #define FALSE   0
 #define TRUE    1
 
-/*
+/**
  * @brief Struct to manage timers.
+ *
+ * If flag == 1, timer is counting. It increments the counter value every 1ms.              <br>
+ * If counter > timeout, then the callback function is called.                              <br>
+ * If timer_mode == TIMER_MODE_ALWAYS, after a timeout, the timer will repeat the process.  <br>
+ * If timer_mode == TIMER_MODE_ONCE, after a timeout, the timer stops.                      <br>
+ * if flag == 0, timer is stopped.                                                          <br>
  */
 typedef struct
 {
-    uint8_t flag;                       /* Activate timer */
-    timer_mode_e timer_mode;            /* Timer type. TIMER_MOMDE_ALWAYS or TIMER_MODE_ONCE */
-    uint32_t timeout;                   /* Timer timeout time*/
-    uint32_t counter;                   /* Timer counter variable */
-    Timer_CallbackFunc_t callback;      /* Callback func to execute on timeout */
+    uint8_t flag;                       /**< @brief Activate timer.*/
+    timer_mode_e timer_mode;            /**< @brief Timer type. TIMER_MOMDE_ALWAYS or TIMER_MODE_ONCE.*/
+    uint32_t timeout;                   /**< @brief Timer timeout time.*/
+    uint32_t counter;                   /**< @brief Timer counter variable.*/
+    Timer_CallbackFunc_t callback;      /**< @brief Callback func to execute on timeout.*/
 }timer_t;
 
 
@@ -23,12 +33,13 @@ typedef struct
  */
 timer_t timers[TIMER_N_MAX];
 
-volatile uint32_t systick_time = 0;     // Incremented every 1 ms
-volatile uint32_t us_delay_time = 0;    // Incremented every 10 us
+volatile uint32_t systick_time = 0;     /**< @brief Incremented every 1 ms.*/
+volatile uint32_t us_delay_time = 0;    /**< @brief Incremented every 10 us.*/
 
 /**
- * @brief Initialization of the timers. Config the SysTick interrupt and
- * reset all the timers flags.
+ * @brief Initialization of the timers.
+ *
+ * Config the SysTick interrupt and reset all the timers flags.
  */
 void Timer_Init(void)
 {

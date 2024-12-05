@@ -1,10 +1,36 @@
+/**
+ * @file sys_clock.c
+ */
+
 #include "stm32f1xx.h"
 #include "sys_clock.h"
 
+/**
+ * @brief Config the System Clock to 64MHz
+ *
+ * 1. Enable HSI                                                    <br>
+ * 2. Set the Power Enable bit (RCC_APB1ENR_PWREN)                  <br>
+ * 3. Set the Flash latency to 2: FLASH_ACR_LATENCY_2               <br>
+ * 4. Configure HCLK, PCLK1, PCLK2 Prescalers                       <br>
+ *      AHB Prescaler: DIV1                                         <br>
+ *      APB1 Prescaler: DIV2                                        <br>
+ *      APB2 Prescaler: DIV1                                        <br>
+ * 5. Configure the MAIN PLL                                        <br>
+ *      HSI Oscillator clock: 8 MHz                                 <br>
+ *      PLL input clock: HSI/2                                      <br>
+ *      PLL internal mult clock: MULL16                             <br>
+ *      System Clock result: 64 MHz                                 <br>
+ *      AHB presc.: 1                                               <br>
+ *      APB1 presc: min: 2: max APB1 clock: 32 MHz                  <br>
+ *      APB2 presc: 1       max APB2 clock: 64 MHz                  <br>
+ * 6. Enable PLL and wait to stabilize                              <br>
+ * 7. Select PLL as System Clock Source and wait to become ready    <br>
+ *
+ */
 void Sys_Clock_Init(void)
 {
 
-    /* Configure System Clock to 64 MHz with external crystal oscillator */
+    /* Configure System Clock to 64 MHz */
 
     /* Steps to configure System Clock */
     /*

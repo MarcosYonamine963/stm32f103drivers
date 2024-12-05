@@ -1,3 +1,7 @@
+/**
+ * @file circular_buffer.c
+ */
+
 #include "circular_buffer.h"
 
 /**
@@ -5,7 +9,8 @@
  * 
  * @param buffer [IN]: Circular buffer to receive the new data.
  * @param byte [IN]: Data to be written.
- * @retval buffer_status_e: Operation status, returns if the buffer is
+ *
+ * @retval buffer_status_e Operation status, returns if the buffer is
  *  full or if the data could be saved.
  */
 buffer_status_e Buffer_Write(volatile circ_buffer_t* buffer, uint8_t byte)
@@ -29,8 +34,10 @@ buffer_status_e Buffer_Write(volatile circ_buffer_t* buffer, uint8_t byte)
 /**
  * @brief Reads the oldest byte saved on a circular buffer.
  * 
+ * The read byte is automatically excluded from buffer.
+ *
  * @param buffer [IN]: Circular buffer from where data will be read.
- * @param byte {OUT}: Pointer to the byte that must received the read data.
+ * @param byte [OUT]: Pointer to the byte that must received the read data.
  * @retval buffer_status_e: Operation status, returns if the buffer is empty or
  * if the data could be read.
  */
@@ -54,6 +61,8 @@ buffer_status_e Buffer_Read(volatile circ_buffer_t* buffer, uint8_t * byte)
 /**
  * @brief Reads the newest byte saved on a circular buffer.
  * 
+ * Do not change the buffer. The byte will remain on buffer.
+ *
  * @param buffer [IN]: Circular buffer from where data will be read.
  * @param byte [OUT]: Pointer to the byte that must received the read data.
  * @retval buffer_status_e: Operation status, returns if the buffer is empty or
