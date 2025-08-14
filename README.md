@@ -3,9 +3,9 @@ Drivers for STM32F103 Bluepill Microcontroller
 
 ## Installation
 
-* Using GitSubmodules: Go to Git Bash, enter your repo at the directory you want to add this repo as a submodule. Run:
+* Using GitSubmodules: Go to Git Bash, enter your repo at the Src directory of your project you want to add this repo as a submodule. Run:
 
-      git submodule add git@github.com:MarcosYonamine963/stm32f103drivers.git .
+      git submodule add git@github.com:MarcosYonamine963/stm32f103drivers.git ./stm32f103drivers
 
   Para inicializar o submodule:
 
