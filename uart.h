@@ -34,6 +34,8 @@ typedef enum
 typedef void (*Uart_RX_CallbackFunc_t )(uint8_t);
 
 void Uart_config(USART_TypeDef *UARTx, uint32_t baud, uart_remap_e remap, Uart_RX_CallbackFunc_t callback);
+void Uart_change_baud(USART_TypeDef *UARTx, uint32_t baud);
+
 uart_status_e Uart_Write_Byte(USART_TypeDef *UARTx, uint8_t ch);
 uart_status_e Uart_Write_Array(USART_TypeDef *UARTx, uint8_t *array, uint16_t length);
 uart_status_e Uart_Write_Text(USART_TypeDef *UARTx, char *text);

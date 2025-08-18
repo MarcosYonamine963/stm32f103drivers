@@ -85,6 +85,69 @@ void Uart_config(USART_TypeDef *UARTx, uint32_t baud, uart_remap_e remap, Uart_R
     }
 }
 
+void Uart_change_baud(USART_TypeDef *UARTx, uint32_t baud)
+{
+    switch((uint32_t)UARTx)
+    {
+    	case (uint32_t)USART1:
+			// Disable interrupts
+    		__disable_irq();
+
+			// Disable UART
+			UARTx->CR1 &= ~(USART_CR1_UE);
+
+			// Config Baud
+			UARTx->BRR =  ((SystemCoreClock + (baud/2U))/baud);
+
+			// Enable UART
+			UARTx->CR1 |= USART_CR1_UE;
+
+			// Enable interrupts
+			__enable_irq();
+
+		break;
+
+    	case (uint32_t)USART2:
+
+			// Disable interrupts
+			__disable_irq();
+
+			// Disable UART
+			UARTx->CR1 &= ~(USART_CR1_UE);
+
+			// Config Baud
+			UARTx->BRR =  (((SystemCoreClock/2) + (baud/2U))/baud);
+
+			// Enable UART
+			UARTx->CR1 |= USART_CR1_UE;
+
+			// Enable interrupts
+			__enable_irq();
+
+		break;
+
+        case (uint32_t)USART3:
+
+			// Disable interrupts
+			__disable_irq();
+
+			// Disable UART
+			UARTx->CR1 &= ~(USART_CR1_UE);
+
+			// Config Baud
+			UARTx->BRR =  (((SystemCoreClock/2) + (baud/2U))/baud);
+
+			// Enable UART
+			UARTx->CR1 |= USART_CR1_UE;
+
+			// Enable interrupts
+			__enable_irq();
+
+		break;
+    }
+
+}// end Uart_change_baud
+
 
 uart_status_e Uart_Write_Byte(USART_TypeDef *UARTx, uint8_t data)
 {
