@@ -1,5 +1,4 @@
 #include "uart.h"
-#include "sys_clock.h"
 
 /*
  * Transmission Procedure:
@@ -87,7 +86,7 @@ void Uart_config(USART_TypeDef *UARTx, uint32_t baud, uart_remap_e remap, Uart_R
 }
 
 
-uart_status_e Uart_WriteChar(USART_TypeDef *UARTx, uint8_t ch)
+uart_status_e Uart_Write_Byte(USART_TypeDef *UARTx, uint8_t data)
 {
     // verify if uart is not enabled
     if(0 == (UARTx->CR1 & USART_CR1_UE))
@@ -101,19 +100,43 @@ uart_status_e Uart_WriteChar(USART_TypeDef *UARTx, uint8_t ch)
     while(!(UARTx->SR & USART_SR_TXE)){}
 
     /*Write to transmit data register*/
-    UARTx->DR  =  (ch & 0xFF);
+    UARTx->DR  =  (data & 0xFF);
 
     return UART_OK;
 }
 
-uart_status_e Uart_Transmit(USART_TypeDef *UARTx, uint8_t *buffer, uint16_t length)
+uart_status_e Uart_Write_Array(USART_TypeDef *UARTx, uint8_t *array, uint16_t length)
 {
     for(uint16_t i = 0; i < length; i++)
     {
-        if( UART_ERR == Uart_WriteChar(UARTx, buffer[i]))
+        if( UART_ERR == Uart_Write_Byte(UARTx, array[i]))
             return UART_ERR;
     }
 
+    return UART_OK;
+}
+
+uart_status_e Uart_Write_Text(USART_TypeDef *UARTx, char *text)
+{
+    if (!text)
+        return UART_ERR;
+
+    while (*text)
+    {
+        // verify if uart is not enabled
+        if(0 == (UARTx->CR1 & USART_CR1_UE))
+            return UART_ERR;
+
+        // verify if tx is not enabled
+        if(0 == (UARTx->CR1 & USART_CR1_TE))
+            return UART_ERR;
+
+        /*Make sure the transmit data register is empty*/
+        while(!(UARTx->SR & USART_SR_TXE)){}
+
+        /*Write to transmit data register*/
+        UARTx->DR  =  (*text++ & 0xFF);
+    }
     return UART_OK;
 }
 
@@ -179,7 +202,7 @@ static void Uart1_config(uint32_t baud, uart_remap_e remap)
     USART1->CR1 |= USART_CR1_RE;
 
     // Config Mantissa and Fraction
-    USART1->BRR =  ((SYS_CLOCK + (baud/2U))/baud);
+    USART1->BRR =  ((SystemCoreClock + (baud/2U))/baud);
 
     // Enable Uart 1
     USART1->CR1 |= USART_CR1_UE;
@@ -219,7 +242,7 @@ static void Uart2_config(uint32_t baud)
     USART2->CR1 |= USART_CR1_RE;
 
     // Config Mantissa and Fraction
-    USART2->BRR =  (((SYS_CLOCK/2) + (baud/2U))/baud);
+    USART2->BRR =  (((SystemCoreClock/2) + (baud/2U))/baud);
 
     // Enable Uart
     USART2->CR1 |= USART_CR1_UE;
@@ -262,7 +285,7 @@ static void Uart3_config(uint32_t baud)
     USART3->CR1 |= USART_CR1_RE;
 
     // Config Mantissa and Fraction
-    USART3->BRR =  (((SYS_CLOCK/2) + (baud/2U))/baud);
+    USART3->BRR =  (((SystemCoreClock/2) + (baud/2U))/baud);
 
     // Enable Uart
     USART3->CR1 |= USART_CR1_UE;

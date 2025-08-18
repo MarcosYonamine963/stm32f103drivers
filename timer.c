@@ -1,262 +1,358 @@
 #include "stm32f1xx.h"
 #include "timer.h"
-#include "sys_clock.h"  // Just to get system clock value
 
+#ifndef NULL
+#define NULL ((void *)0x00)
+#endif
+
+#ifndef FALSE
 #define FALSE   0
+#endif
+
+#ifndef TRUE
 #define TRUE    1
+#endif
 
-/*
- * @brief Struct to manage timers.
- */
-typedef struct
+#ifndef TMR_AMOUNT
+#define TMR_AMOUNT    20
+#endif
+
+typedef struct timer
 {
-    uint8_t flag;                       /* Activate timer */
-    timer_mode_e timer_mode;            /* Timer type. TIMER_MOMDE_ALWAYS or TIMER_MODE_ONCE */
-    uint32_t timeout;                   /* Timer timeout time*/
-    uint32_t counter;                   /* Timer counter variable */
-    Timer_CallbackFunc_t callback;      /* Callback func to execute on timeout */
-}timer_t;
+    timer_callback_t cbk;
+    timer_type_t type;
+    uint32_t period;
+    uint32_t timeout;
+    timer_state_t state;
+}
+timer_t;
 
+static timer_t timers[TMR_AMOUNT] = {{NULL, TYPE_NOT_DEFINED, 0, 0, TIMER_EMPTY}};
+static volatile uint32_t systemtick = 0;
+static volatile uint32_t delay_time = 0;
+static uint8_t timer_is_initialized = 0;
 
 /**
- * @brief Timers struct array
+ * @brief Configure System Clock: HSI and PLL. 64MHz as main system Clock.
+ *
  */
-timer_t timers[TIMER_N_MAX];
+static void Sys_Clock_Init(void)
+{
+    /* 1. Enable HSI and wait for HSI to become ready */
+    RCC->CR |= RCC_CR_HSION;
+    while( !(RCC->CR & RCC_CR_HSIRDY) );// when done, HSERDY is set
 
-volatile uint32_t systick_time = 0;     // Incremented every 1 ms
-volatile uint32_t us_delay_time = 0;    // Incremented every 10 us
+    /* 2. Set the Power Enable bit */
+    RCC->APB1ENR |= RCC_APB1ENR_PWREN;
+
+    /* 3. Configure the FLASH PREFETCH and the LATENCY Related Settings */
+    /*
+       FLASH_ACR_LATENCY_0 if 0 < SYSCLK <= 24 MHz
+       FLASH_ACR_LATENCY_1 if 24 MHz < SYSCLK <= 48 MHz
+       FLASH_ACR_LATENCY_2 if 48 MHz < SYSCLK <= 72 MHz
+     */
+    FLASH->ACR |= FLASH_ACR_LATENCY_2;
+
+    /* 4. Configure the PRESCALERS HCLK, PCLK1, PCLK2 */
+    // AHB Prescaler
+    RCC->CFGR |= RCC_CFGR_HPRE_DIV1;
+    // APB1 Prescaler
+    RCC->CFGR |= RCC_CFGR_PPRE1_DIV2;
+    // APB2 Prescaler
+    RCC->CFGR |= RCC_CFGR_PPRE2_DIV1;
+
+    /* 5. Configure the MAIN PLL */
+    RCC->CFGR |= RCC_CFGR_PLLMULL16;             // Multiply PLL internal clock: (HSI/2)*PLLMULL
+
+    /* 6. Enable PLL and wait for PLL to become ready */
+    RCC->CR |= RCC_CR_PLLON;
+    while( !(RCC->CR & RCC_CR_PLLRDY) );
+
+    /* 7. Select the System Clock Source and wait to become ready */
+    RCC->CFGR |= RCC_CFGR_SW_PLL;               // Select PLL as System Clock
+    while( (RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL );
+}
+
+
+void SysTick_Handler(void)
+{
+	systemtick++;
+	delay_time++;
+}
+
 
 /**
  * @brief Initialization of the timers. Config the SysTick interrupt and
- * reset all the timers flags.
+ * reset all the timers flags. Execute the function Sys_Clock_Init before this.
  */
 void Timer_Init(void)
 {
-    /* https://www.keil.com/pack/doc/CMSIS_Dev/Core/html/group__system__init__gr.html */
-    /* Config SysTick interrupt to 1 kHz. Callback: SysTick_Handler */
-    SysTick_Config( 640 ); // Config timer to 100 KHz (inc every 10us)
+	Sys_Clock_Init();
 
-    // all timers initialized stopped, until setted by the Timer_Set function
-    for (uint8_t i = 0; i < TIMER_N_MAX; i++)
+	SystemCoreClockUpdate();
+
+    /* https://www.keil.com/pack/doc/CMSIS_Dev/Core/html/group__system__init__gr.html */
+    /* Config SysTick interrupt. Callback: SysTick_Handler */
+	SysTick_Config(SystemCoreClock / TIMEBASE);
+
+	timer_is_initialized = 1;
+
+    for (uint16_t i = 0; i < TMR_AMOUNT; i++)
     {
-        timers[i].flag = 0;
+        timers[i].state = TIMER_EMPTY;
+        timers[i].type = TYPE_NOT_DEFINED;
     }
+
+	NVIC_SetPriority(SysTick_IRQn, 1);
 
 }// end Timer_Init
 
+
+
 /**
- * @brief SysTick interrupt handler. Called every 10 us. Increment timer counters.
+ * @brief Get current System tick value.
+ *
+ * @return uint32_t System tick.
  */
-void SysTick_Handler(void)
+uint32_t Timer_GetSystemTick(void)
 {
-
-    us_delay_time++;
-
-    if(us_delay_time % 100 == 0) //1 ms
-    {
-        systick_time++;
-
-        // increment all timer's counters
-        for (uint8_t i = 0; i < TIMER_N_MAX; i++)
-        {
-            if(timers[i].flag)
-            {
-                timers[i].counter++;
-            }
-        }// end inc timers counter
-
-    }// end 1 ms
-
-}// end SysTick_Handler
-
-
-
-/**
- * @brief Config and init a timer.
- * @param timer_id: [input] Index to timers array.
- * @param time: [input] time value in ms to timeout.
- * @param callback: [function pointer] function to be called on timeout.
- * @param type_mode: [input] Tipo de execucao do timer. ALWAYS ou ONCE.
- */
-void Timer_Set(uint8_t timer_id, uint32_t time, Timer_CallbackFunc_t callback, timer_mode_e timer_mode)
-{
-    timers[timer_id].flag = 1;
-    timers[timer_id].timeout = time;
-    timers[timer_id].callback = callback;
-    timers[timer_id].timer_mode = timer_mode;
-    timers[timer_id].counter = 0;
+	return systemtick;
 }
 
-
-/**
- * @brief Stop the timer.
- * @param timer_id: [input] index to timer array
- * @return boolean: status of operation. 1: success, 0: fail
- * */
-_Bool Timer_Stop(uint8_t timer_id)
-{
-    if ((timer_id >= 0) && (timer_id < TIMER_N_MAX))
-    {
-        timers[timer_id].flag = 0;
-        return TRUE;
-    }
-    else
-    {
-        return FALSE;
-    }
-}
-
-/**
- * @brief Continue timer counting from where it stopped
- * @param timer_id: [input] index to timer array
- * @return boolean: status of operation. 1: success, 0: fail
- * */
-_Bool Timer_Continue(uint8_t timer_id)
-{
-    if ((timer_id >= 0) && (timer_id < TIMER_N_MAX))
-    {
-        timers[timer_id].flag = 1;
-        return TRUE;
-    }
-    else
-    {
-        return FALSE;
-    }
-
-}
-
-/**
- * @brief Restart counting from 0.
- * @param timer_id: [input] index to timer array
- * @return boolean: status of operation. 1: success, 0: fail
- **/
-_Bool Timer_Restart(uint8_t timer_id)
-{
-    if ((timer_id >= 0) && (timer_id < TIMER_N_MAX))
-    {
-        timers[timer_id].flag = 1;
-        timers[timer_id].counter = 0;
-        return TRUE;
-    }
-    else
-    {
-        return FALSE;
-    }
-}
-
-/**
- * @brief Get the timer counter value
- * @param timer_id: [input] index to timer array
- * @return uint32_t: timer counter value
- * */
-uint32_t Timer_Get_Counter(uint8_t timer_id)
-{
-    if ((timer_id >= 0) && (timer_id < TIMER_N_MAX))
-    {
-        return timers[timer_id].counter;
-    }
-    else
-    {
-        return FALSE;
-    }
-}
-
-/**
- * @brief Set the timer counter value
- * @param timer_id: [input] index to timer array
- * @param counter: [input] counter value to set
- * @return boolean: status of operation. 1: success, 0: fail
- * */
-_Bool Timer_Set_Counter(uint8_t timer_id, uint32_t counter)
-{
-    if ((timer_id >= 0) && (timer_id < TIMER_N_MAX))
-    {
-        timers[timer_id].counter = counter;
-        return TRUE;
-    }
-    else
-    {
-        return FALSE;
-    }
-}
-
-/**
- * @brief State Machine for the timers. Check if timer is on timeout and
- * executes the callback function.
- * @note run this function on embedded loop (mandatory if using this module)
- * @note2 don't use blocking functions. It may cause wrong timing values.
- */
 void Timer_SM(void)
 {
-    for (uint8_t i=0; i<TIMER_N_MAX; i++)
-    {
-        if (timers[i].flag == 1)
-        {
-            if (timers[i].counter >= timers[i].timeout)
-            {
-                if (timers[i].timer_mode == TIMER_MODE_ONCE)
-                {
-                    timers[i].flag = 0;
-                }
-                else if (timers[i].timer_mode == TIMER_MODE_ALWAYS)
-                {
-                    timers[i].counter = 0;
-                }
+    static uint16_t timer_cnt = 0;
+    uint32_t tick = systemtick;
 
-                (timers[i].callback)();
+    if (0 == timer_is_initialized)
+    {
+        return;
+    }
+
+    if ((TIMER_RUNNING == timers[timer_cnt].state) && \
+        (systemtick >= timers[timer_cnt].timeout))
+    {
+        if (NULL != timers[timer_cnt].cbk)
+        {
+            timers[timer_cnt].cbk((void*)&tick, 1);
+        }
+        else
+        {
+            timers[timer_cnt].state = TIMER_ERROR;
+        }
+
+        switch (timers[timer_cnt].type)
+        {
+            case ONE_SHOT_TIMER:
+                timers[timer_cnt].state = TIMER_STOPPED;
+            break;
+
+            case AUTO_RELOAD_TIMER:
+                timers[timer_cnt].timeout += timers[timer_cnt].period;
+            break;
+
+            default:
+                timers[timer_cnt].state = TIMER_ERROR;
+            break;
+        }
+
+    }
+
+    if (TMR_AMOUNT <= (++timer_cnt))
+    {
+        timer_cnt = 0;
+    }
+
+}
+
+uint16_t Timer_Create(timer_callback_t timer_cbk, timer_type_t timer_type, \
+    uint32_t timer_period)
+{
+    uint16_t result = UINT16_MAX;
+
+    for (uint16_t i = 0; i < TMR_AMOUNT; i++)
+    {
+        if (TIMER_EMPTY == timers[i].state)
+        {
+            if (NULL == timer_cbk)
+            {
+                /* do nothing */
             }
+            else if ((AUTO_RELOAD_TIMER < timer_type) || (0 == timer_period))
+            {
+                /* do nothing */
+            }
+            else
+            {
+                timers[i].cbk = timer_cbk;
+                timers[i].type = timer_type;
+                timers[i].period = timer_period;
+                timers[i].timeout = (uint32_t)(systemtick + timer_period);
+                timers[i].state = TIMER_RUNNING;
+
+                result = i;
+            }
+
+            break;
+        }
+        else
+        {
+            /* do nothing */
+        }
+
+    }
+
+    return result;
+}
+
+void Timer_Config(uint16_t timer_id, timer_callback_t timer_cbk, \
+    timer_type_t timer_type, uint32_t timer_period)
+{
+    if (TMR_AMOUNT <= timer_id)
+    {
+        /* do nothing */
+    }
+    else if (TIMER_EMPTY != timers[timer_id].state)
+    {
+        if (NULL != timer_cbk)
+        {
+            timers[timer_id].cbk = timer_cbk;
+        }
+        else
+        {
+            /* do nothing */
+        }
+
+
+        if (KEEP_TIMER_TYPE > timer_type)
+        {
+            timers[timer_id].type = timer_type;
+        }
+        else
+        {
+            /* do nothing */
+        }
+
+        if (0 != timer_period)
+        {
+            timers[timer_id].period = timer_period;
+        }
+        else
+        {
+            /* do nothing */
         }
     }
-}// end Timer_SM
+    else
+    {
+        /* do nothing */
+    }
+}
 
-/**
- * @brief get system clock tick (1 ms)
- * @return uint32_t systick counter value
- *
- * @note use it like Arduino's millis() function
- * */
-uint32_t Timer_Get_Sys_Tick(void)
+void Timer_Delete(uint16_t timer_id)
 {
-    __disable_irq();
-    uint32_t value = systick_time;
-    __enable_irq();
-    return value;
+    if (TMR_AMOUNT <= timer_id)
+    {
+        /* do nothing */
+    }
+    else
+    {
+        timers[timer_id].state = TIMER_EMPTY;
+    }
+
+}
+
+void Timer_Start(uint16_t timer_id)
+{
+    if (TMR_AMOUNT <= timer_id)
+    {
+        /* do nothing */
+    }
+    else if (TIMER_EMPTY != timers[timer_id].state)
+    {
+        timers[timer_id].timeout = (uint32_t)(systemtick + timers[timer_id].period);
+        timers[timer_id].state = TIMER_RUNNING;
+    }
+    else
+    {
+        /* do nothing */
+    }
 }
 
 /**
- * @brief get 100kHz clock tick (10 us)
- * @return uint32_t us_timer counter value
+ * @brief Stops a running timer.
  *
- * */
-uint32_t Timer_Get_10us_Tick(void)
-{
-    return us_delay_time;
-}
-
-/**
- * @brief Delay function in milliseconds. Not recommended (this function blocks the processor)
- * @param t time in milliseconds to block the processor.
+ * @param timer_id Timer ID.
  */
-void Delay_ms(uint32_t t)
+void Timer_Stop(uint16_t timer_id)
 {
-    uint32_t time = Timer_Get_Sys_Tick();
-    while(Timer_Get_Sys_Tick() < time + t)
+    if (TMR_AMOUNT <= timer_id)
+    {
+        /* do nothing */
+    }
+    else if (TIMER_EMPTY != timers[timer_id].state)
+    {
+        timers[timer_id].state = TIMER_STOPPED;
+    }
+    else
+    {
+        /* do nothing */
+    }
+}
+
+/**
+ * @brief Get timer current state.
+ *
+ * @param timer_id Timer ID.
+ * @return timer_state_t Timer state.
+ */
+timer_state_t Timer_GetTimerState(uint16_t timer_id)
+{
+    timer_state_t state = TIMER_ERROR;
+    if (TMR_AMOUNT <= timer_id)
+    {
+        /* do nothing */
+    }
+    else
+    {
+        state = timers[timer_id].state;
+    }
+
+    return state;
+}
+
+/**
+ * @brief Delay in milisseconds
+ *
+ * @param time_ms time to delay (ms)
+ */
+void Timer_Delay(uint32_t time_ms)
+{
+    delay_time = 0;
+    while (delay_time < time_ms*TIME_1MS)
+    {
+        asm volatile("nop");
+    }
+}
+
+void Timer_Delay_10us(uint32_t time_10us)
+{
+    delay_time = 0;
+    while (delay_time < time_10us*2)
+    {
+        asm volatile("nop");
+    }
+}
+
+void Timer_Delay_5us(uint32_t time_5us)
+{
+
+	delay_time = 0;
+
+    while (delay_time < time_5us)
     {
         asm volatile("nop");
     }
 
-}// end Delay_ms
+}
 
-/**
- * @brief Delay function in multiple of 10 us time. Not recommended (this function blocks the processor)
- * @param t time to multiply by 10 us. Ex: it t = 5, blocks processor for 50 us.
- */
-void Delay_10us(uint32_t t)
-{
-    uint32_t time = Timer_Get_10us_Tick();
-    while(Timer_Get_10us_Tick() < time + t)
-    {
-        asm volatile("nop");
-    }
 
-}// end Delay_10us
