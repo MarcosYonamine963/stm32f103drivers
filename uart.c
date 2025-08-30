@@ -148,6 +148,36 @@ void Uart_change_baud(USART_TypeDef *UARTx, uint32_t baud)
 
 }// end Uart_change_baud
 
+void Uart_Disable(USART_TypeDef *UARTx)
+{
+
+    // Transmit Enable
+	UARTx->CR1 &= ~USART_CR1_TE;
+
+    // Receive Enable
+	UARTx->CR1 &= ~USART_CR1_RE;
+
+    // Enable Uart
+	UARTx->CR1 &= ~USART_CR1_UE;
+
+    // RXNE Interrupt Enable
+	UARTx->CR1 &= ~USART_CR1_RXNEIE;
+}
+
+void Uart_Enable(USART_TypeDef *UARTx)
+{
+    // Transmit Enable
+	UARTx->CR1 |= USART_CR1_TE;
+
+    // Receive Enable
+	UARTx->CR1 |= USART_CR1_RE;
+
+    // Enable Uart
+	UARTx->CR1 |= USART_CR1_UE;
+
+    // RXNE Interrupt Enable
+	UARTx->CR1 |= USART_CR1_RXNEIE;
+}
 
 uart_status_e Uart_Write_Byte(USART_TypeDef *UARTx, uint8_t data)
 {
