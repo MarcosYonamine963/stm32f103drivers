@@ -1,5 +1,4 @@
 #include "i2c.h"
-#include "timer.h"
 
 // ##############  PRIVATE FUNCTIONS  ############### //
 
@@ -66,7 +65,6 @@ static void _I2C1_Config(i2c_remap_e I2C_REMAP_x, i2c_freq_e I2C_FREQ_x)
             I2C1->CCR |= (160 << I2C_CCR_CCR_Pos);
             break;
     }
-
 
     // Configure the rise time register
     // Max value: PCLK1 + 1. Register max value: 31
@@ -157,9 +155,6 @@ i2c_status_e I2C_is_Busy(I2C_TypeDef *I2Cx)
 
 i2c_status_e I2C_Send_Start(I2C_TypeDef *I2Cx, uint8_t slave_addr, i2c_data_dir_e I2C_DATA_DIR_x)
 {
-
-    Timer_Delay(3); // Dont remove this.
-
     if(I2C_DATA_DIR_x == I2C_DATA_DIR_WRITE)
     {
         slave_addr &= ~(0b1);
@@ -180,9 +175,15 @@ i2c_status_e I2C_Send_Start(I2C_TypeDef *I2Cx, uint8_t slave_addr, i2c_data_dir_
 
     // Read SR1
     while(!(I2Cx->SR1 & I2C_SR1_ADDR));
-
-    // Read SR2
-    I2Cx->SR2;
+    while( (I2Cx->SR1 & I2C_SR1_ADDR) )
+    {
+        I2Cx->SR1;
+        I2Cx->SR2;
+        if( !(I2Cx->SR1 & I2C_SR1_ADDR) )
+        {
+            break;
+        }
+    }
 
     return I2C_STATUS_OK;
 }// end I2C_Send_Start
@@ -191,6 +192,7 @@ i2c_status_e I2C_Write_Data(I2C_TypeDef *I2Cx, uint8_t data)
 {
     while(!(I2Cx->SR1 & I2C_SR1_TXE));
     I2Cx->DR = data;
+    while(!(I2Cx->SR1 & I2C_SR1_TXE));
 
     return I2C_STATUS_OK;
 }
@@ -206,6 +208,9 @@ i2c_status_e I2C_Read_Data(I2C_TypeDef *I2Cx, uint8_t *data)
 
 i2c_status_e I2C_Send_Stop(I2C_TypeDef *I2Cx)
 {
+    I2Cx->SR1;
+    I2Cx->SR2;
+
     while(!(I2Cx->SR1 & I2C_SR1_BTF));
 
     // Generate STOP condition
