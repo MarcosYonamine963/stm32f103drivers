@@ -1,3 +1,9 @@
+/**
+ * @file i2c.h
+ * @brief I2C Driver for STM32F103 Microcontrollers
+ * @author Marcos Yonamine
+ */
+
 #ifndef STM32F103DRIVERS_I2C_H_
 #define STM32F103DRIVERS_I2C_H_
 
@@ -11,6 +17,7 @@ typedef enum
 
 /**
  * @brief I2C Frequency options. The lower the frequency, the higher the reliability.
+ *
  */
 typedef enum
 {
@@ -19,12 +26,10 @@ typedef enum
     I2C_FREQ_100K
 }i2c_freq_e;
 
-typedef enum
-{
-    I2C_DATA_DIR_WRITE = 0,
-    I2C_DATA_DIR_READ
-}i2c_data_dir_e;
-
+/**
+ * @brief I2C return status code
+ *
+ */
 typedef enum
 {
     I2C_STATUS_OK = 0,
@@ -33,17 +38,7 @@ typedef enum
 }i2c_status_e;
 
 void I2C_Config(I2C_TypeDef *I2Cx, i2c_remap_e I2C_REMAP_x, i2c_freq_e I2C_FREQ_x);
-
-i2c_status_e I2C_is_Busy(I2C_TypeDef *I2Cx);
-
-i2c_status_e I2C_Send_Start(I2C_TypeDef *I2Cx, uint8_t slave_addr, i2c_data_dir_e I2C_DATA_DIR_x);
-
-i2c_status_e I2C_Write_Data(I2C_TypeDef *I2Cx, uint8_t data);
-
-i2c_status_e I2C_Read_Data(I2C_TypeDef *I2Cx, uint8_t *data);
-
-i2c_status_e I2C_Send_Stop(I2C_TypeDef *I2Cx);
-
-void I2C_Clear_Received_ACK_flag(I2C_TypeDef *I2Cx);
+i2c_status_e I2C_Write_Data_Array(I2C_TypeDef *I2Cx, uint8_t slave_addr, uint8_t data[], uint16_t len);
+i2c_status_e I2C_Read_Data_Array(I2C_TypeDef *I2Cx, uint8_t slave_addr, uint8_t data[], uint16_t len);
 
 #endif /* STM32F103DRIVERS_I2C_H_ */

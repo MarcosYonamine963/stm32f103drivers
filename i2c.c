@@ -1,4 +1,20 @@
+/**
+ * @file i2c.c
+ * @brief I2C Driver for STM32F103 Microcontrollers
+ * @author Marcos Yonamine
+ */
+
 #include "i2c.h"
+
+#ifndef NULL
+#define NULL ((void *)0x00)
+#endif
+
+typedef enum
+{
+    I2C_DATA_DIR_WRITE = 0,
+    I2C_DATA_DIR_READ
+}i2c_data_dir_e;
 
 // ##############  PRIVATE FUNCTIONS  ############### //
 
@@ -123,38 +139,24 @@ static void _I2C2_Config(i2c_freq_e I2C_FREQ_x)
 
     // Program the I2C_CR1 register to enable the peripheral
     I2C2->CR1 |= I2C_CR1_PE;
-}
+}// end _I2C2_Config
 
-// ##############  PUBLIC FUNCTIONS  ############### //
-
-void I2C_Config(I2C_TypeDef *I2Cx, i2c_remap_e I2C_REMAP_x, i2c_freq_e I2C_FREQ_x)
+static i2c_status_e I2C_is_Busy(I2C_TypeDef *I2Cx)
 {
-    switch((uint32_t)(I2Cx))
-    {
-        case (uint32_t)I2C1:
-            _I2C1_Config(I2C_REMAP_x, I2C_FREQ_x);
-            break;
+    if(I2Cx == NULL)
+        return I2C_STATUS_ERROR;
 
-        case (uint32_t)I2C2:
-            _I2C2_Config(I2C_FREQ_x);
-            break;
-
-        default:
-            break;
-    }
-}
-
-
-i2c_status_e I2C_is_Busy(I2C_TypeDef *I2Cx)
-{
     if(I2Cx->SR2 & I2C_SR2_BUSY)
         return I2C_STATUS_BUSY;
     else
         return I2C_STATUS_OK;
-}
+}// end I2C_is_Busy
 
-i2c_status_e I2C_Send_Start(I2C_TypeDef *I2Cx, uint8_t slave_addr, i2c_data_dir_e I2C_DATA_DIR_x)
+static i2c_status_e I2C_Send_Start(I2C_TypeDef *I2Cx, uint8_t slave_addr, i2c_data_dir_e I2C_DATA_DIR_x)
 {
+    if(I2Cx == NULL)
+        return I2C_STATUS_ERROR;
+
     if(I2C_DATA_DIR_x == I2C_DATA_DIR_WRITE)
     {
         slave_addr &= ~(0b1);
@@ -188,26 +190,35 @@ i2c_status_e I2C_Send_Start(I2C_TypeDef *I2Cx, uint8_t slave_addr, i2c_data_dir_
     return I2C_STATUS_OK;
 }// end I2C_Send_Start
 
-i2c_status_e I2C_Write_Data(I2C_TypeDef *I2Cx, uint8_t data)
+static i2c_status_e I2C_Send_Data(I2C_TypeDef *I2Cx, uint8_t data)
 {
+    if(I2Cx == NULL)
+        return I2C_STATUS_ERROR;
+
     while(!(I2Cx->SR1 & I2C_SR1_TXE));
     I2Cx->DR = data;
     while(!(I2Cx->SR1 & I2C_SR1_TXE));
 
     return I2C_STATUS_OK;
-}
+}// end I2C_Send_Data
 
-i2c_status_e I2C_Read_Data(I2C_TypeDef *I2Cx, uint8_t *data)
+static i2c_status_e I2C_Get_Data(I2C_TypeDef *I2Cx, uint8_t *data)
 {
+    if(I2Cx == NULL)
+        return I2C_STATUS_ERROR;
+
     while(!(I2Cx->SR1 & I2C_SR1_RXNE));
     uint8_t read = (uint8_t)(I2Cx->DR);
     *data = read;
 
     return I2C_STATUS_OK;
-}
+}// end I2C_Get_Data
 
-i2c_status_e I2C_Send_Stop(I2C_TypeDef *I2Cx)
+static i2c_status_e I2C_Send_Stop(I2C_TypeDef *I2Cx)
 {
+    if(I2Cx == NULL)
+        return I2C_STATUS_ERROR;
+
     I2Cx->SR1;
     I2Cx->SR2;
 
@@ -220,9 +231,112 @@ i2c_status_e I2C_Send_Stop(I2C_TypeDef *I2Cx)
     while(I2Cx->SR2 & I2C_SR2_BUSY);
 
     return I2C_STATUS_OK;
-}
+}// end I2C_Send_Stop
 
-void I2C_Clear_Received_ACK_flag(I2C_TypeDef *I2Cx)
+static i2c_status_e I2C_Clear_Received_ACK_flag(I2C_TypeDef *I2Cx)
 {
+    if(I2Cx == NULL)
+        return I2C_STATUS_ERROR;
+
     I2Cx->CR1 &= ~(I2C_CR1_ACK);
-}
+
+    return I2C_STATUS_OK;
+}// end I2C_Clear_Received_ACK_flag
+
+
+
+// ##############  PUBLIC FUNCTIONS  ############### //
+
+/**
+ * @brief Configure a I2C peripheral
+ *
+ * @param I2Cx [IN] CMSIS I2C_TypeDef typedef
+ *
+ * @param I2C_REMAP_x [IN] Affects only for I2C1: <br>
+ * I2C1 NO_REMAP: <br>
+ * SCL: PB6 <br>
+ * SDA: PB7 <br>
+ *
+ * I2C1 REMAP: <br>
+ * SCL: PB8 <br>
+ * SDA: PB9 <br>
+ */
+void I2C_Config(I2C_TypeDef *I2Cx, i2c_remap_e I2C_REMAP_x, i2c_freq_e I2C_FREQ_x)
+{
+    switch((uint32_t)(I2Cx))
+    {
+        case (uint32_t)I2C1:
+            _I2C1_Config(I2C_REMAP_x, I2C_FREQ_x);
+            break;
+
+        case (uint32_t)I2C2:
+            _I2C2_Config(I2C_FREQ_x);
+            break;
+
+        default:
+            break;
+    }
+}// end I2C_Config
+
+/**
+ * @brief I2C Protocol send data array.  <br>
+ * Send Start Condition, data array, send stop condition
+ *
+ * @param I2Cx [IN] CMSIS I2C_TypeDef typedef
+ * @param slave_addr [IN] 8 bits slave addr. LSB does'n matter
+ * @param data [IN] data array
+ * @param len [IN] quantity of bytes on data array
+ * @return i2c_status_e return status code
+ */
+i2c_status_e I2C_Write_Data_Array(I2C_TypeDef *I2Cx, uint8_t slave_addr, uint8_t data[], uint16_t len)
+{
+    i2c_status_e result = I2C_STATUS_OK;
+    // Send Start
+    result = I2C_Send_Start(I2Cx, slave_addr, I2C_DATA_DIR_WRITE);
+    if(result != I2C_STATUS_OK) return I2C_STATUS_ERROR;
+
+    // Send data array
+    for(uint16_t i = 0; i < len; i++)
+    {
+        result = I2C_Send_Data(I2Cx, data[i]);
+        if(result != I2C_STATUS_OK) return I2C_STATUS_ERROR;
+    }
+
+    // Send Stop
+    result = I2C_Send_Stop(I2Cx);
+    if(result != I2C_STATUS_OK) return I2C_STATUS_ERROR;
+
+    return I2C_STATUS_OK;
+}// end I2C_Write_Data_Array
+
+/**
+ * @brief I2C Protocol read data array.  <br>
+ * Send Start Condition, read data array, send stop condition
+ *
+ * @param I2Cx [IN] CMSIS I2C_TypeDef typedef
+ * @param slave_addr [IN] 8 bits slave addr. LSB does'n matter
+ * @param data [OUT] data array to store the read bytes
+ * @param len [IN] quantity of bytes to read
+ * @return i2c_status_e return status code
+ */
+i2c_status_e I2C_Read_Data_Array(I2C_TypeDef *I2Cx, uint8_t slave_addr, uint8_t data[], uint16_t len)
+{
+    i2c_status_e result;
+
+    // Send Start
+    result = I2C_Send_Start(I2Cx, slave_addr, I2C_DATA_DIR_READ);
+    if(result != I2C_STATUS_OK) return I2C_STATUS_ERROR;
+
+    // Get data array
+    for(uint16_t i = 0; i < len; i++)
+    {
+        result = I2C_Get_Data(I2Cx, &data[i]);
+        if(result != I2C_STATUS_OK) return I2C_STATUS_ERROR;
+    }
+
+    // Send Stop
+    result = I2C_Send_Stop(I2Cx);
+    if(result != I2C_STATUS_OK) return I2C_STATUS_ERROR;
+
+    return I2C_STATUS_OK;
+}// end I2C_Read_Data_Array
