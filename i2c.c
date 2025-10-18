@@ -65,8 +65,16 @@ static void _I2C1_Config(i2c_remap_e I2C_REMAP_x, i2c_freq_e I2C_FREQ_x)
     I2C1->CR2 |= 32; // 32 MHz: APB1 clock frequency value. (maximum 50 MHz)
 
     // Configure the clock control registers
-    // Standard mode
-    I2C1->CCR &= ~(I2C_CCR_FS);
+    if(I2C_FREQ_x == I2C_FREQ_400K)
+    {
+        // Fast mode
+        I2C1->CCR |= I2C_CCR_FS;
+    }
+    else
+    {
+        // Standard mode
+        I2C1->CCR &= ~(I2C_CCR_FS);
+    }
 
     // Config frequency
     switch(I2C_FREQ_x)
@@ -80,11 +88,22 @@ static void _I2C1_Config(i2c_remap_e I2C_REMAP_x, i2c_freq_e I2C_FREQ_x)
         case I2C_FREQ_100K:
             I2C1->CCR |= (160 << I2C_CCR_CCR_Pos);
             break;
+        case I2C_FREQ_400K:
+            I2C1->CCR = (I2C_CCR_FS | (27 << I2C_CCR_CCR_Pos));
+//            I2C1->CCR = I2C_CCR_FS | I2C_CCR_DUTY | (3 << I2C_CCR_CCR_Pos);
+            break;
     }
 
     // Configure the rise time register
     // Max value: PCLK1 + 1. Register max value: 31
-    I2C1->TRISE |= (31);
+    if(I2C_FREQ_x == I2C_FREQ_400K)
+    {
+        I2C1->TRISE = 11;
+    }
+    else
+    {
+        I2C1->TRISE |= (31);
+    }
 
     // Program the I2C_CR1 register to enable the peripheral
     I2C1->CR1 |= I2C_CR1_PE;
@@ -116,8 +135,16 @@ static void _I2C2_Config(i2c_freq_e I2C_FREQ_x)
     I2C2->CR2 |= 32; // 32 MHz: APB1 clock frequency value. (maximum 50 MHz)
 
     // Configure the clock control registers
-    // Standard mode
-    I2C2->CCR &= ~(I2C_CCR_FS);
+    if(I2C_FREQ_x == I2C_FREQ_400K)
+    {
+        // Fast mode
+        I2C2->CCR |= (I2C_CCR_FS);
+    }
+    else
+    {
+        // Standard mode
+        I2C2->CCR &= ~(I2C_CCR_FS);
+    }
 
     // Config frequency
     switch(I2C_FREQ_x)
@@ -131,11 +158,22 @@ static void _I2C2_Config(i2c_freq_e I2C_FREQ_x)
         case I2C_FREQ_100K:
             I2C2->CCR |= (160 << I2C_CCR_CCR_Pos);
             break;
+        case I2C_FREQ_400K:
+            I2C2->CCR = (I2C_CCR_FS | (27 << I2C_CCR_CCR_Pos));
+
+            break;
     }
 
     // Configure the rise time register
     // Max value: PCLK1 + 1. Register max value: 31
-    I2C2->TRISE |= (31);
+    if(I2C_FREQ_x == I2C_FREQ_400K)
+    {
+        I2C1->TRISE = 11;
+    }
+    else
+    {
+        I2C2->TRISE |= (31);
+    }
 
     // Program the I2C_CR1 register to enable the peripheral
     I2C2->CR1 |= I2C_CR1_PE;
@@ -165,6 +203,9 @@ static i2c_status_e I2C_Send_Start(I2C_TypeDef *I2Cx, uint8_t slave_addr, i2c_da
     {
         slave_addr |= (0b1);
     }
+
+    // Espera ate ficar IDLE:
+    while(I2Cx->SR2 & I2C_SR2_BUSY);
 
     // Start Condition
     I2Cx->CR1 |= I2C_CR1_START;

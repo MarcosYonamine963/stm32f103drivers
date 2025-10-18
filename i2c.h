@@ -23,7 +23,8 @@ typedef enum
 {
     I2C_FREQ_20K = 0,
     I2C_FREQ_50K,
-    I2C_FREQ_100K
+    I2C_FREQ_100K,
+    I2C_FREQ_400K
 }i2c_freq_e;
 
 /**
