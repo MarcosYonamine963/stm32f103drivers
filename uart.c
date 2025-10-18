@@ -398,19 +398,46 @@ void USART1_IRQHandler(void)
 {
     // RXNE: Received data ready to be read
     if( (USART1->SR & USART_SR_RXNE) == USART_SR_RXNE )
-        uart1_rx_callback((uint8_t)USART1->DR);
+    {
+        if(uart1_rx_callback)
+        {
+            uart1_rx_callback((uint8_t)USART1->DR);
+        }
+        else
+        {
+            (void)USART1->DR; // just read
+        }
+    }
 }
 
 void USART2_IRQHandler(void)
 {
     // RXNE: Received data ready to be read
     if ((USART2->SR & USART_SR_RXNE) == USART_SR_RXNE)
-        uart2_rx_callback((uint8_t)USART2->DR);
+    {
+        if(uart2_rx_callback)
+        {
+            uart2_rx_callback((uint8_t)USART2->DR);
+        }
+        else
+        {
+            (void)USART2->DR; // just read
+        }
+    }
 }
 
 void USART3_IRQHandler(void)
 {
     // RXNE: Received data ready to be read
     if ((USART3->SR & USART_SR_RXNE) == USART_SR_RXNE)
-        uart3_rx_callback((uint8_t)USART3->DR);
+    {
+        if(uart3_rx_callback)
+        {
+            uart3_rx_callback((uint8_t)USART3->DR);
+        }
+        else
+        {
+            (void)USART3->DR;
+        }
+    }
 }
