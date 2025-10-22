@@ -41,5 +41,6 @@ typedef enum
 void I2C_Config(I2C_TypeDef *I2Cx, i2c_remap_e I2C_REMAP_x, i2c_freq_e I2C_FREQ_x);
 i2c_status_e I2C_Write_Data_Array(I2C_TypeDef *I2Cx, uint8_t slave_addr, uint8_t data[], uint16_t len);
 i2c_status_e I2C_Read_Data_Array(I2C_TypeDef *I2Cx, uint8_t slave_addr, uint8_t data[], uint16_t len);
+i2c_status_e I2C_is_Busy(I2C_TypeDef *I2Cx);
 
 #endif /* STM32F103DRIVERS_I2C_H_ */

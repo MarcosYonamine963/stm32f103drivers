@@ -179,16 +179,7 @@ static void _I2C2_Config(i2c_freq_e I2C_FREQ_x)
     I2C2->CR1 |= I2C_CR1_PE;
 }// end _I2C2_Config
 
-static i2c_status_e I2C_is_Busy(I2C_TypeDef *I2Cx)
-{
-    if(I2Cx == NULL)
-        return I2C_STATUS_ERROR;
 
-    if(I2Cx->SR2 & I2C_SR2_BUSY)
-        return I2C_STATUS_BUSY;
-    else
-        return I2C_STATUS_OK;
-}// end I2C_is_Busy
 
 static i2c_status_e I2C_Send_Start(I2C_TypeDef *I2Cx, uint8_t slave_addr, i2c_data_dir_e I2C_DATA_DIR_x)
 {
@@ -274,15 +265,18 @@ static i2c_status_e I2C_Send_Stop(I2C_TypeDef *I2Cx)
     return I2C_STATUS_OK;
 }// end I2C_Send_Stop
 
-static i2c_status_e I2C_Clear_Received_ACK_flag(I2C_TypeDef *I2Cx)
-{
-    if(I2Cx == NULL)
-        return I2C_STATUS_ERROR;
-
-    I2Cx->CR1 &= ~(I2C_CR1_ACK);
-
-    return I2C_STATUS_OK;
-}// end I2C_Clear_Received_ACK_flag
+/**
+ * DEPRECATED
+ */
+//static i2c_status_e I2C_Clear_Received_ACK_flag(I2C_TypeDef *I2Cx)
+//{
+//    if(I2Cx == NULL)
+//        return I2C_STATUS_ERROR;
+//
+//    I2Cx->CR1 &= ~(I2C_CR1_ACK);
+//
+//    return I2C_STATUS_OK;
+//}// end I2C_Clear_Received_ACK_flag
 
 
 
@@ -381,3 +375,14 @@ i2c_status_e I2C_Read_Data_Array(I2C_TypeDef *I2Cx, uint8_t slave_addr, uint8_t 
 
     return I2C_STATUS_OK;
 }// end I2C_Read_Data_Array
+
+i2c_status_e I2C_is_Busy(I2C_TypeDef *I2Cx)
+{
+    if(I2Cx == NULL)
+        return I2C_STATUS_ERROR;
+
+    if(I2Cx->SR2 & I2C_SR2_BUSY)
+        return I2C_STATUS_BUSY;
+    else
+        return I2C_STATUS_OK;
+}// end I2C_is_Busy
