@@ -233,25 +233,37 @@ void EXTI0_IRQHandler()
 void EXTI1_IRQHandler()
 {
     EXTI->PR |= EXTI_PR_PR1;
-    Exti_callback_line_1();
+    if(Exti_callback_line_1)
+    {
+        Exti_callback_line_1();
+    }
 }
 
 void EXTI2_IRQHandler()
 {
     EXTI->PR |= EXTI_PR_PR2;
-    Exti_callback_line_2();
+    if(Exti_callback_line_2)
+    {
+        Exti_callback_line_2();
+    }
 }
 
 void EXTI3_IRQHandler()
 {
     EXTI->PR |= EXTI_PR_PR3;
-    Exti_callback_line_3();
+    if(Exti_callback_line_3)
+    {
+        Exti_callback_line_3();
+    }
 }
 
 void EXTI4_IRQHandler()
 {
     EXTI->PR |= EXTI_PR_PR4;
-    Exti_callback_line_4();
+    if(Exti_callback_line_4)
+    {
+        Exti_callback_line_4();
+    }
 }
 
 void EXTI9_5_IRQHandler()
@@ -260,23 +272,38 @@ void EXTI9_5_IRQHandler()
     {
         case EXTI_PR_PR5:
             EXTI->PR |= EXTI_PR_PR5;
-            Exti_callback_line_5();
+            if(Exti_callback_line_5)
+            {
+                Exti_callback_line_5();
+            }
             break;
         case EXTI_PR_PR6:
             EXTI->PR |= EXTI_PR_PR6;
-            Exti_callback_line_6();
+            if(Exti_callback_line_6)
+            {
+                Exti_callback_line_6();
+            }
             break;
         case EXTI_PR_PR7:
             EXTI->PR |= EXTI_PR_PR7;
-            Exti_callback_line_7();
+            if(Exti_callback_line_7)
+            {
+                Exti_callback_line_7();
+            }
             break;
         case EXTI_PR_PR8:
             EXTI->PR |= EXTI_PR_PR8;
-            Exti_callback_line_8();
+            if(Exti_callback_line_8)
+            {
+                Exti_callback_line_8();
+            }
             break;
         case EXTI_PR_PR9:
             EXTI->PR |= EXTI_PR_PR9;
-            Exti_callback_line_9();
+            if(Exti_callback_line_9)
+            {
+                Exti_callback_line_9();
+            }
             break;
     }
 }
@@ -287,27 +314,45 @@ void EXTI15_10_IRQHandler()
     {
         case EXTI_PR_PR10:
             EXTI->PR |= EXTI_PR_PR10;
-            Exti_callback_line_10();
+            if(Exti_callback_line_10)
+            {
+                Exti_callback_line_10();
+            }
             break;
         case EXTI_PR_PR11:
             EXTI->PR |= EXTI_PR_PR11;
-            Exti_callback_line_11();
+            if(Exti_callback_line_11)
+            {
+                Exti_callback_line_11();
+            }
             break;
         case EXTI_PR_PR12:
             EXTI->PR |= EXTI_PR_PR12;
-            Exti_callback_line_12();
+            if(Exti_callback_line_12)
+            {
+                Exti_callback_line_12();
+            }
             break;
         case EXTI_PR_PR13:
             EXTI->PR |= EXTI_PR_PR13;
-            Exti_callback_line_13();
+            if(Exti_callback_line_13)
+            {
+                Exti_callback_line_13();
+            }
             break;
         case EXTI_PR_PR14:
             EXTI->PR |= EXTI_PR_PR14;
-            Exti_callback_line_14();
+            if(Exti_callback_line_14)
+            {
+                Exti_callback_line_14();
+            }
             break;
         case EXTI_PR_PR15:
             EXTI->PR |= EXTI_PR_PR15;
-            Exti_callback_line_15();
+            if(Exti_callback_line_15)
+            {
+                Exti_callback_line_15();
+            }
             break;
     }
 }
