@@ -87,15 +87,15 @@ void SysTick_Handler(void)
  */
 void Timer_Init(void)
 {
-	Sys_Clock_Init();
+    Sys_Clock_Init();
 
-	SystemCoreClockUpdate();
+    SystemCoreClockUpdate();
 
     /* https://www.keil.com/pack/doc/CMSIS_Dev/Core/html/group__system__init__gr.html */
     /* Config SysTick interrupt. Callback: SysTick_Handler */
-	SysTick_Config(SystemCoreClock / TIMEBASE);
+    SysTick_Config(SystemCoreClock / TIMEBASE);
 
-	timer_is_initialized = 1;
+    timer_is_initialized = 1;
 
     for (uint16_t i = 0; i < TMR_AMOUNT; i++)
     {
@@ -103,7 +103,9 @@ void Timer_Init(void)
         timers[i].type = TYPE_NOT_DEFINED;
     }
 
-	NVIC_SetPriority(SysTick_IRQn, 1);
+    NVIC_SetPriority(SysTick_IRQn, 1);
+
+    SystemCoreClockUpdate();
 
 }// end Timer_Init
 

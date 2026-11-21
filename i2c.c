@@ -5,6 +5,7 @@
  */
 
 #include "i2c.h"
+#include "core_delay.h"
 
 #ifndef NULL
 #define NULL ((void *)0x00)
@@ -17,6 +18,31 @@ typedef enum
 }i2c_data_dir_e;
 
 // ##############  PRIVATE FUNCTIONS  ############### //
+
+/**
+ * @brief reset i2c registers by SWRST bit, and reconfig registers.
+ *
+ * Used to reinitialize the peripheral from a locked state.
+ */
+static void _I2C_Reset(I2C_TypeDef *I2Cx)
+{
+    // Get values from registers
+    uint32_t cr1 = I2Cx->CR1;
+    uint32_t cr2 = I2Cx->CR2;
+    uint32_t ccr = I2Cx->CCR;
+    uint32_t trise = I2Cx->TRISE;
+
+    // Software reset
+    I2Cx->CR1 |= I2C_CR1_SWRST;
+    core_delay_us(1000);
+    I2Cx->CR1 &= ~I2C_CR1_SWRST;
+
+    // Reconfig
+    I2Cx->CR1 = cr1;
+    I2Cx->CR2 = cr2;
+    I2Cx->CCR = ccr;
+    I2Cx->TRISE = trise;
+}
 
 /**
  * I2C1 No Remap:
@@ -33,12 +59,11 @@ static void _I2C1_Config(i2c_remap_e I2C_REMAP_x, i2c_freq_e I2C_FREQ_x)
     RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
     // Enable AFIO clock
     RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;
-    // Enable I2C1 clock
-    RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
 
     switch(I2C_REMAP_x)
     {
         case I2C_REMAP_NO_REMAP:
+            GPIOB->CRL &= ~(GPIO_CRL_MODE6 | GPIO_CRL_CNF6 | GPIO_CRL_MODE7 | GPIO_CRL_CNF7);
             // PB6: AF Open-Drain
             GPIOB->CRL |= GPIO_CRL_MODE6 | GPIO_CRL_CNF6;
             // PB7: AF Open-Drain
@@ -48,6 +73,7 @@ static void _I2C1_Config(i2c_remap_e I2C_REMAP_x, i2c_freq_e I2C_FREQ_x)
             break;
 
         case I2C_REMAP_REMAP:
+            GPIOB->CRH &= ~(GPIO_CRH_MODE8 | GPIO_CRH_CNF8 | GPIO_CRH_MODE9 | GPIO_CRH_CNF9);
             // PB8: AF Open-Drain
             GPIOB->CRH |= GPIO_CRH_MODE8 | GPIO_CRH_CNF8;
             // PB9: AF Open-Drain
@@ -61,48 +87,39 @@ static void _I2C1_Config(i2c_remap_e I2C_REMAP_x, i2c_freq_e I2C_FREQ_x)
 
     }// end switch remap
 
+    // Enable I2C1 clock
+    RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
+
+    // Software reset
+    I2C1->CR1 |= I2C_CR1_SWRST;
+    core_delay_us(1000);
+    I2C1->CR1 &= ~I2C_CR1_SWRST;
+
     // Program I2C input clock at I2C_CR2
     I2C1->CR2 |= 32; // 32 MHz: APB1 clock frequency value. (maximum 50 MHz)
 
-    // Configure the clock control registers
-    if(I2C_FREQ_x == I2C_FREQ_400K)
-    {
-        // Fast mode
-        I2C1->CCR |= I2C_CCR_FS;
-    }
-    else
-    {
-        // Standard mode
-        I2C1->CCR &= ~(I2C_CCR_FS);
-    }
+    // Standard mode
+    I2C1->CCR &= ~(I2C_CCR_FS);
 
     // Config frequency
     switch(I2C_FREQ_x)
     {
         case I2C_FREQ_20K:
-            I2C1->CCR |= (800 << I2C_CCR_CCR_Pos); // CCR = PCLK1 / (2 * Target I2C Frequency). Calculation for 20 kHz
+            I2C1->CCR = (800 << I2C_CCR_CCR_Pos); // CCR = PCLK1 / (2 * Target I2C Frequency). Calculation for 20 kHz
+            I2C1->TRISE = 31;
             break;
         case I2C_FREQ_50K:
-            I2C1->CCR |= (320 << I2C_CCR_CCR_Pos);
+            I2C1->CCR = (320 << I2C_CCR_CCR_Pos);
+            I2C1->TRISE = 31;
             break;
         case I2C_FREQ_100K:
-            I2C1->CCR |= (160 << I2C_CCR_CCR_Pos);
+            I2C1->CCR = (160 << I2C_CCR_CCR_Pos);
+            I2C1->TRISE = 31;
             break;
         case I2C_FREQ_400K:
             I2C1->CCR = (I2C_CCR_FS | (27 << I2C_CCR_CCR_Pos));
-//            I2C1->CCR = I2C_CCR_FS | I2C_CCR_DUTY | (3 << I2C_CCR_CCR_Pos);
+            I2C1->TRISE = 11;
             break;
-    }
-
-    // Configure the rise time register
-    // Max value: PCLK1 + 1. Register max value: 31
-    if(I2C_FREQ_x == I2C_FREQ_400K)
-    {
-        I2C1->TRISE = 11;
-    }
-    else
-    {
-        I2C1->TRISE |= (31);
     }
 
     // Program the I2C_CR1 register to enable the peripheral
@@ -123,13 +140,19 @@ static void _I2C2_Config(i2c_freq_e I2C_FREQ_x)
     RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
     // Enable AFIO clock
     RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;
-    // Enable I2C2 clock
-    RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
+
 
     // PB10: AF Open-Drain
     GPIOB->CRH |= GPIO_CRH_MODE10 | GPIO_CRH_CNF10;
     // PB11: AF Open-Drain
     GPIOB->CRH |= GPIO_CRH_MODE11 | GPIO_CRH_CNF11;
+
+    // Enable I2C2 clock
+    RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
+
+    I2C2->CR1 |= I2C_CR1_SWRST;
+    core_delay_us(1000);
+    I2C2->CR1 &= ~I2C_CR1_SWRST;
 
     // Program I2C input clock at I2C_CR2
     I2C2->CR2 |= 32; // 32 MHz: APB1 clock frequency value. (maximum 50 MHz)
@@ -168,7 +191,7 @@ static void _I2C2_Config(i2c_freq_e I2C_FREQ_x)
     // Max value: PCLK1 + 1. Register max value: 31
     if(I2C_FREQ_x == I2C_FREQ_400K)
     {
-        I2C1->TRISE = 11;
+        I2C2->TRISE = 11;
     }
     else
     {
@@ -186,6 +209,9 @@ static i2c_status_e I2C_Send_Start(I2C_TypeDef *I2Cx, uint8_t slave_addr, i2c_da
     if(I2Cx == NULL)
         return I2C_STATUS_ERROR;
 
+    uint32_t timeout = core_us_to_cycles(1000);
+    uint32_t start = 0;
+
     if(I2C_DATA_DIR_x == I2C_DATA_DIR_WRITE)
     {
         slave_addr &= ~(0b1);
@@ -196,19 +222,45 @@ static i2c_status_e I2C_Send_Start(I2C_TypeDef *I2Cx, uint8_t slave_addr, i2c_da
     }
 
     // Espera ate ficar IDLE:
-    while(I2Cx->SR2 & I2C_SR2_BUSY);
+    start = core_get_cycles();
+    while(I2Cx->SR2 & I2C_SR2_BUSY)
+    {
+        if ((core_get_cycles() - start) >= timeout)
+        {
+            _I2C_Reset(I2Cx);
+            return I2C_STATUS_ERROR;
+        }
+    }
 
     // Start Condition
     I2Cx->CR1 |= I2C_CR1_START;
 
     // Read SR1
-    while( !(I2Cx->SR1 & I2C_SR1_SB));
+    start = core_get_cycles();
+    while( !(I2Cx->SR1 & I2C_SR1_SB))
+    {
+        if ((core_get_cycles() - start) >= timeout)
+        {
+            _I2C_Reset(I2Cx);
+            return I2C_STATUS_ERROR;
+        }
+    }
 
     // Write DR with the slave address
     I2Cx->DR = slave_addr;
 
     // Read SR1
-    while(!(I2Cx->SR1 & I2C_SR1_ADDR));
+    start = core_get_cycles();
+    while(!(I2Cx->SR1 & I2C_SR1_ADDR))
+    {
+        if ((core_get_cycles() - start) >= timeout)
+        {
+            _I2C_Reset(I2Cx);
+            return I2C_STATUS_ERROR;
+        }
+    }
+
+    start = core_get_cycles();
     while( (I2Cx->SR1 & I2C_SR1_ADDR) )
     {
         I2Cx->SR1;
@@ -216,6 +268,12 @@ static i2c_status_e I2C_Send_Start(I2C_TypeDef *I2Cx, uint8_t slave_addr, i2c_da
         if( !(I2Cx->SR1 & I2C_SR1_ADDR) )
         {
             break;
+        }
+
+        if ((core_get_cycles() - start) >= timeout)
+        {
+            _I2C_Reset(I2Cx);
+            return I2C_STATUS_ERROR;
         }
     }
 
@@ -227,9 +285,30 @@ static i2c_status_e I2C_Send_Data(I2C_TypeDef *I2Cx, uint8_t data)
     if(I2Cx == NULL)
         return I2C_STATUS_ERROR;
 
-    while(!(I2Cx->SR1 & I2C_SR1_TXE));
+    uint32_t timeout = core_us_to_cycles(1000);
+    uint32_t start = 0;
+
+    start = core_get_cycles();
+    while(!(I2Cx->SR1 & I2C_SR1_TXE))
+    {
+        if ((core_get_cycles() - start) >= timeout)
+        {
+            _I2C_Reset(I2Cx);
+            return I2C_STATUS_ERROR;
+        }
+    }
+
     I2Cx->DR = data;
-    while(!(I2Cx->SR1 & I2C_SR1_TXE));
+
+    start = core_get_cycles();
+    while(!(I2Cx->SR1 & I2C_SR1_TXE))
+    {
+        if ((core_get_cycles() - start) >= timeout)
+        {
+            _I2C_Reset(I2Cx);
+            return I2C_STATUS_ERROR;
+        }
+    }
 
     return I2C_STATUS_OK;
 }// end I2C_Send_Data
@@ -239,7 +318,19 @@ static i2c_status_e I2C_Get_Data(I2C_TypeDef *I2Cx, uint8_t *data)
     if(I2Cx == NULL)
         return I2C_STATUS_ERROR;
 
-    while(!(I2Cx->SR1 & I2C_SR1_RXNE));
+    uint32_t timeout = core_us_to_cycles(1000);
+    uint32_t start = 0;
+
+    start = core_get_cycles();
+    while(!(I2Cx->SR1 & I2C_SR1_RXNE))
+    {
+        if ((core_get_cycles() - start) >= timeout)
+        {
+            _I2C_Reset(I2Cx);
+            return I2C_STATUS_ERROR;
+        }
+    }
+
     uint8_t read = (uint8_t)(I2Cx->DR);
     *data = read;
 
@@ -251,36 +342,46 @@ static i2c_status_e I2C_Send_Stop(I2C_TypeDef *I2Cx)
     if(I2Cx == NULL)
         return I2C_STATUS_ERROR;
 
+    uint32_t timeout = core_us_to_cycles(1000);
+    uint32_t start = 0;
+
     I2Cx->SR1;
     I2Cx->SR2;
 
-    while(!(I2Cx->SR1 & I2C_SR1_BTF));
+    start = core_get_cycles();
+    while(!(I2Cx->SR1 & I2C_SR1_BTF))
+    {
+        if ((core_get_cycles() - start) >= timeout)
+        {
+            _I2C_Reset(I2Cx);
+            return I2C_STATUS_ERROR;
+        }
+    }
 
     // Generate STOP condition
     I2Cx->CR1 |= I2C_CR1_STOP;
 
     // Espera ate ficar IDLE:
-    while(I2Cx->SR2 & I2C_SR2_BUSY);
+    start = core_get_cycles();
+    while(I2Cx->SR2 & I2C_SR2_BUSY)
+    {
+        if ((core_get_cycles() - start) >= timeout)
+        {
+            _I2C_Reset(I2Cx);
+            return I2C_STATUS_ERROR;
+        }
+    }
 
     return I2C_STATUS_OK;
 }// end I2C_Send_Stop
 
-/**
- * DEPRECATED
- */
-//static i2c_status_e I2C_Clear_Received_ACK_flag(I2C_TypeDef *I2Cx)
-//{
-//    if(I2Cx == NULL)
-//        return I2C_STATUS_ERROR;
-//
-//    I2Cx->CR1 &= ~(I2C_CR1_ACK);
-//
-//    return I2C_STATUS_OK;
-//}// end I2C_Clear_Received_ACK_flag
-
-
 
 // ##############  PUBLIC FUNCTIONS  ############### //
+
+void I2C_Init(void)
+{
+    core_timer_init();
+}
 
 /**
  * @brief Configure a I2C peripheral
@@ -376,6 +477,10 @@ i2c_status_e I2C_Read_Data_Array(I2C_TypeDef *I2Cx, uint8_t slave_addr, uint8_t 
     return I2C_STATUS_OK;
 }// end I2C_Read_Data_Array
 
+/**
+ * @brief return I2C Busy status
+ *
+ */
 i2c_status_e I2C_is_Busy(I2C_TypeDef *I2Cx)
 {
     if(I2Cx == NULL)
