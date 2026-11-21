@@ -1,4 +1,5 @@
 #include "uart.h"
+#include "core_delay.h"
 
 /*
  * Transmission Procedure:
@@ -73,15 +74,15 @@ void Uart_config(USART_TypeDef *UARTx, uint32_t baud, uart_remap_e remap, Uart_R
         case (uint32_t)USART1:
             Uart1_config(baud, remap);
             uart1_rx_callback = callback;
-            break;
+        break;
         case (uint32_t)USART2:
             Uart2_config(baud);
             uart2_rx_callback = callback;
-            break;
+        break;
         case (uint32_t)USART3:
             Uart3_config(baud);
             uart3_rx_callback = callback;
-            break;
+        break;
     }
 }
 
@@ -89,94 +90,94 @@ void Uart_change_baud(USART_TypeDef *UARTx, uint32_t baud)
 {
     switch((uint32_t)UARTx)
     {
-    	case (uint32_t)USART1:
-			// Disable interrupts
-    		__disable_irq();
+        case (uint32_t)USART1:
+            // Disable interrupts
+            __disable_irq();
 
-			// Disable UART
-			UARTx->CR1 &= ~(USART_CR1_UE);
+            // Disable UART
+            UARTx->CR1 &= ~(USART_CR1_UE);
 
-			// Config Baud
-			UARTx->BRR =  ((SystemCoreClock + (baud/2U))/baud);
+            // Config Baud
+            UARTx->BRR =  ((SystemCoreClock + (baud/2U))/baud);
 
-			// Enable UART
-			UARTx->CR1 |= USART_CR1_UE;
+            // Enable UART
+            UARTx->CR1 |= USART_CR1_UE;
 
-			// Enable interrupts
-			__enable_irq();
+            // Enable interrupts
+            __enable_irq();
 
-		break;
+        break;
 
-    	case (uint32_t)USART2:
 
-			// Disable interrupts
-			__disable_irq();
+        case (uint32_t)USART2:
 
-			// Disable UART
-			UARTx->CR1 &= ~(USART_CR1_UE);
+            // Disable interrupts
+            __disable_irq();
 
-			// Config Baud
-			UARTx->BRR =  (((SystemCoreClock/2) + (baud/2U))/baud);
+            // Disable UART
+            UARTx->CR1 &= ~(USART_CR1_UE);
 
-			// Enable UART
-			UARTx->CR1 |= USART_CR1_UE;
+            // Config Baud
+            UARTx->BRR =  (((SystemCoreClock/2) + (baud/2U))/baud);
 
-			// Enable interrupts
-			__enable_irq();
+            // Enable UART
+            UARTx->CR1 |= USART_CR1_UE;
 
-		break;
+            // Enable interrupts
+            __enable_irq();
+
+        break;
 
         case (uint32_t)USART3:
 
-			// Disable interrupts
-			__disable_irq();
+            // Disable interrupts
+            __disable_irq();
 
-			// Disable UART
-			UARTx->CR1 &= ~(USART_CR1_UE);
+            // Disable UART
+            UARTx->CR1 &= ~(USART_CR1_UE);
 
-			// Config Baud
-			UARTx->BRR =  (((SystemCoreClock/2) + (baud/2U))/baud);
+            // Config Baud
+            UARTx->BRR =  (((SystemCoreClock/2) + (baud/2U))/baud);
 
-			// Enable UART
-			UARTx->CR1 |= USART_CR1_UE;
+            // Enable UART
+            UARTx->CR1 |= USART_CR1_UE;
 
-			// Enable interrupts
-			__enable_irq();
+            // Enable interrupts
+            __enable_irq();
 
-		break;
+        break;
     }
 
 }// end Uart_change_baud
 
 void Uart_Disable(USART_TypeDef *UARTx)
 {
-
     // Transmit Enable
-	UARTx->CR1 &= ~USART_CR1_TE;
+    UARTx->CR1 &= ~USART_CR1_TE;
 
     // Receive Enable
-	UARTx->CR1 &= ~USART_CR1_RE;
+    UARTx->CR1 &= ~USART_CR1_RE;
 
     // Enable Uart
-	UARTx->CR1 &= ~USART_CR1_UE;
+    UARTx->CR1 &= ~USART_CR1_UE;
 
     // RXNE Interrupt Enable
-	UARTx->CR1 &= ~USART_CR1_RXNEIE;
+    UARTx->CR1 &= ~USART_CR1_RXNEIE;
 }
 
 void Uart_Enable(USART_TypeDef *UARTx)
 {
     // Transmit Enable
-	UARTx->CR1 |= USART_CR1_TE;
+    UARTx->CR1 |= USART_CR1_TE;
 
     // Receive Enable
-	UARTx->CR1 |= USART_CR1_RE;
+    UARTx->CR1 |= USART_CR1_RE;
 
     // Enable Uart
-	UARTx->CR1 |= USART_CR1_UE;
+    UARTx->CR1 |= USART_CR1_UE;
 
     // RXNE Interrupt Enable
-	UARTx->CR1 |= USART_CR1_RXNEIE;
+    UARTx->CR1 |= USART_CR1_RXNEIE;
 }
 
 uart_status_e Uart_Write_Byte(USART_TypeDef *UARTx, uint8_t data)
@@ -190,7 +191,15 @@ uart_status_e Uart_Write_Byte(USART_TypeDef *UARTx, uint8_t data)
         return UART_ERR;
 
     /*Make sure the transmit data register is empty*/
-    while(!(UARTx->SR & USART_SR_TXE)){}
+    uint32_t timeout = core_us_to_cycles(10000);
+    uint32_t start = core_get_cycles();
+    while(!(UARTx->SR & USART_SR_TXE))
+    {
+        if ((core_get_cycles() - start) >= timeout)
+        {
+            return UART_ERR;
+        }
+    }
 
     /*Write to transmit data register*/
     UARTx->DR  =  (data & 0xFF);
@@ -225,7 +234,15 @@ uart_status_e Uart_Write_Text(USART_TypeDef *UARTx, char *text)
             return UART_ERR;
 
         /*Make sure the transmit data register is empty*/
-        while(!(UARTx->SR & USART_SR_TXE)){}
+        uint32_t timeout = core_us_to_cycles(10000);
+        uint32_t start = core_get_cycles();
+        while(!(UARTx->SR & USART_SR_TXE))
+        {
+            if ((core_get_cycles() - start) >= timeout)
+            {
+                return UART_ERR;
+            }
+        }
 
         /*Write to transmit data register*/
         UARTx->DR  =  (*text++ & 0xFF);
